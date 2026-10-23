@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Lift Log logo: the icon with rounded corners, for use on pages, docs and the favicon. -->
+  <rect width="1024" height="1024" rx="230" fill="#0D1B2B"/>
+  <g fill="none" stroke-width="66" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M180 619H362L431 495L545 704" stroke="#FFFFFF"/>
+    <path d="M545 704L814 434M680 434H814V570" stroke="#C7F431"/>
+  </g>
+</svg>

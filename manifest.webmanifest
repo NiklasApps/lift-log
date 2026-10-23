@@ -4,11 +4,13 @@
   "start_url": "./liftlog.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#eceff4",
-  "theme_color": "#eceff4",
+  "background_color": "#0d1b2b",
+  "theme_color": "#0d1b2b",
   "icons": [
     { "src": "liftlog-icon-180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "liftlog-icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "liftlog-icon-1024.png", "sizes": "1024x1024", "type": "image/png" }
+    { "src": "liftlog-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "liftlog-icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "liftlog-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }

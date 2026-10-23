@@ -1,7 +1,7 @@
 // Offline cache for the self-hosted copy. Pages: network first so updates show up;
 // everything else (icons, fonts): cache first.
-const CACHE = "liftlog-v1";
-const CORE = ["./", "./liftlog.html", "./manifest.webmanifest", "./liftlog-icon-180.png", "./liftlog-icon-512.png"];
+const CACHE = "liftlog-v2";
+const CORE = ["./", "./liftlog.html", "./manifest.webmanifest", "./favicon.svg", "./favicon-32.png", "./liftlog-icon-180.png", "./liftlog-icon-512.png", "./liftlog-maskable-512.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

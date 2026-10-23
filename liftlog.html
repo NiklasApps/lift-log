@@ -373,7 +373,6 @@ const ICON = {
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
 };
 
-const APP_ICON = "data:image/png;base64,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";
 
 const STARTER = () => ({
   units: "kg",
@@ -429,7 +428,7 @@ const S = {
 const units = () => (S.plan && S.plan.units) || "kg";
 
 /* ---------- storage: claude.ai db, local fallback, outbox for unsent writes ---------- */
-let db = null, downloads = null;
+let db = null;
 const dirty = new Map(), timers = new Map(), queues = new Map(), deleted = new Set();
 let ver = 0;
 const outbox = () => ls.get("liftlog.outbox") || {};
@@ -562,7 +561,6 @@ async function initStore() {
     replayOutbox(); scheduleRender();
   }, onDbError);
   render();
-  try { downloads = await window.claude.use("downloads"); } catch { downloads = null; }
 }
 function onDbError(e) { toast(e && e.code === "revoked" ? "Access to your saved log was withdrawn. Reload the page." : "Lost the connection to your saved log. Reload the page."); setSync("error"); }
 
@@ -1367,9 +1365,6 @@ function viewPlan() {
   });
   h += `<datalist id="exnames-plan">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>`;
   h += `<button class="btn big" data-a="dayadd">+ Add workout day</button>`;
-  h += `<section class="card stack"><h2>Home screen icon</h2><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><img src="${APP_ICON}" alt="Lift Log icon: a white barbell on blue" width="88" height="88" style="border-radius:20px;flex:none"><p class="muted small" style="margin:0;min-width:0">claude.ai sets the icon of a home-screen shortcut to this page. To get this icon instead, save it, then in the Shortcuts app make a shortcut with the action Open URL and this page's link, choose Add to Home Screen, and pick the saved image as the icon.</p></div><button class="btn" data-a="saveicon">Save icon (PNG)</button></section>`;
-  h += `<section class="card stack"><h2>Your data</h2><p class="muted small" style="margin:0">${S.mode === "cloud" ? "Your plan and workouts are saved to your claude.ai account, so they're there on your phone and computer." : window.claude ? "Saved in this browser only. Open the published page while signed in to claude.ai to keep it in your account." : "Saved in this browser only. Clearing site data or switching phones loses it, so keep a full backup."}</p>
-    <div class="row"><button class="btn" data-a="export" data-f="csv">Export sets (CSV)</button><button class="btn" data-a="export" data-f="json">Full backup (JSON)</button></div></section>`;
   return h;
 }
 
@@ -1389,7 +1384,6 @@ function render() {
   const titles = { train: activeSession() ? "Workout" : "Train", history: "History", progress: "Progress", plan: "Plan" };
   const body = { train: viewTrain, history: viewHistory, progress: viewProgress, plan: viewPlan }[S.view]();
   let h = topbar(titles[S.view]);
-  if (S.mode === "local" && S.view === "train") h += `<div class="wrap" style="padding-block:0 8px"><div class="banner">${window.claude ? "Saving in this browser only. Open the page while signed in to claude.ai to keep your log in your account." : "Your log is saved on this device only. Make a full backup now and then under Plan → Your data."}</div></div>`;
   h += `<main class="wrap">${body}</main>`;
   if (S.restAt && activeSession() && S.view === "train") h += `<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b>${S.restLen ? `<button data-a="restplus">+30 s</button>` : ""}<button data-a="restoff">Hide</button></div></div></div>`;
   h += navHTML();
@@ -1468,26 +1462,6 @@ function finishWorkout(s) {
   saveSession(s, 0); S.justFinished = s.id; S.restAt = null; window.scrollTo(0, 0); render();
 }
 function makePlan(p) { S.plan = p; savePlan(0); render(); }
-// outside claude.ai (self-hosted copy): plain browser download
-function saveFile(name, blob) {
-  const a = document.createElement("a"), url = URL.createObjectURL(blob);
-  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-function exportData(f) {
-  const u = units(); let data, name;
-  if (f === "csv") {
-    const rows = [["date", "phase", "workout", "exercise", "set", "weight_" + u, "reps", "est_1rm"]];
-    for (const s of finished().slice().reverse()) for (const ex of s.exercises) doneSets(ex).forEach((st, k) => rows.push([s.date, (phaseOf(s) || {}).name || "", s.dayName || "", ex.name, k + 1, st.w ?? 0, st.r, fmt(e1rm(st.w || 0, st.r))]));
-    data = rows.map(r => r.map(c => /[",\n]/.test(String(c)) ? '"' + String(c).replace(/"/g, '""') + '"' : c).join(",")).join("\n");
-    name = "lift-log-sets-" + todayStr() + ".csv";
-  } else {
-    data = JSON.stringify({ exportedAt: new Date().toISOString(), plan: S.plan, journey: S.journey, sessions: finished() }, null, 2);
-    name = "lift-log-backup-" + todayStr() + ".json";
-  }
-  if (!downloads) { saveFile(name, new Blob([data], { type: f === "csv" ? "text/csv" : "application/json" })); return; }
-  downloads.save({ filename: name, data }).catch(e => { if (e && e.code !== "declined") toast("The file couldn't be saved here."); });
-}
 
 app.addEventListener("click", e => {
   const b = e.target.closest("[data-a]"); if (!b || b.tagName === "INPUT" || b.tagName === "SELECT" || b.tagName === "TEXTAREA") return;
@@ -1601,15 +1575,6 @@ app.addEventListener("click", e => {
     case "exadd": { const d = S.plan.days[+b.dataset.d]; const lastEx = d.exercises[d.exercises.length - 1]; const e2 = { id: uid(), name: "", sets: 3, reps: "8-10" }; if (lastEx && lastEx.block) e2.block = lastEx.block; d.exercises.push(e2); savePlan(); render(); const el = document.getElementById("en-" + e2.id); if (el) el.focus(); break; }
     case "exrm": { const d = S.plan.days[+b.dataset.d]; d.exercises.splice(+b.dataset.e, 1); savePlan(); render(); break; }
     case "exmv": { const d = S.plan.days[+b.dataset.d], i = +b.dataset.e, j = i + +b.dataset.dir; if (j < 0 || j >= d.exercises.length) return; [d.exercises[i], d.exercises[j]] = [d.exercises[j], d.exercises[i]]; savePlan(); render(); break; }
-    case "export": exportData(b.dataset.f); break;
-    case "saveicon": {
-      const bin = atob(APP_ICON.split(",")[1]), bytes = new Uint8Array(bin.length);
-      for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
-      if (!downloads) { saveFile("lift-log-icon.png", new Blob([bytes], { type: "image/png" })); return; }
-      downloads.save({ filename: "lift-log-icon.png", data: new Blob([bytes], { type: "image/png" }) })
-        .catch(e => { if (e && e.code !== "declined") toast("The icon couldn't be saved here. Press and hold it to save it instead."); });
-      break;
-    }
   }
 });
 

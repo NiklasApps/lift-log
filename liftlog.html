@@ -81,6 +81,10 @@ button { cursor: pointer; }
 .sync.busy i { background: var(--accent); }
 .sync.err { color: var(--warn); } .sync.err i { background: var(--warn); }
 .sync button { border: 0; background: none; color: var(--warn); text-decoration: underline; padding: 0; font-size: 12px; }
+.tbr { display: flex; align-items: center; gap: 10px; flex: none; }
+@media (max-width: 420px) { .topbar h1 { font-size: 23px; } .sync .st { display: none; } }
+.tbr .iconbtn { border: 0; background: none; color: var(--muted); margin-right: -8px; }
+.tbr .iconbtn svg { width: 22px; height: 22px; }
 
 main.wrap { padding-block: 4px calc(var(--nav-h) + 96px); display: flex; flex-direction: column; gap: 14px; }
 
@@ -110,7 +114,13 @@ main.wrap { padding-block: 4px calc(var(--nav-h) + 96px); display: flex; flex-di
 .stat b { display: block; font-family: var(--f-display); font-stretch: var(--wd); font-weight: 800; font-size: 30px; line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .stat span.sub { font-size: 13px; color: var(--muted); }
 
-/* train: next up */
+/* train: week strip, next up */
+.strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 12px 6px; }
+.strip > * { display: flex; flex-direction: column; gap: 4px; padding: 0 10px; min-width: 0; border: 0; border-left: 1px solid var(--line); background: none; text-align: left; }
+.strip > :first-child { border-left: 0; }
+.strip b { font-family: var(--f-display); font-stretch: var(--wd); font-weight: 800; font-size: 24px; line-height: 1; font-variant-numeric: tabular-nums; }
+.strip b .muted { font-size: 16px; }
+.strip .meter { height: 6px; margin-top: 2px; }
 .next h2 { font-size: 26px; }
 .exlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .exlist li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
@@ -209,6 +219,7 @@ select.sel { width: 100%; height: 48px; border: 1px solid var(--line); border-ra
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; padding: 3px; gap: 3px; }
 .seg button { border: 0; background: none; border-radius: 8px; min-height: 38px; font-weight: 600; font-size: 14px; color: var(--muted); }
 .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.seg.four button { font-size: 13px; padding: 0 2px; }
 .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .kpis div { min-width: 0; }
 .kpis b { display: block; font-family: var(--f-display); font-stretch: var(--wd); font-size: 26px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
@@ -325,6 +336,16 @@ li.next .msdot { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent
 .draft h3 { margin: 0; font-family: var(--f-display); font-stretch: var(--wd); font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; line-height: 1.1; }
 .dday { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
 .dday .exlist li { padding: 6px 0; }
+/* questionnaire */
+.opts { display: flex; flex-direction: column; gap: 8px; }
+.opt { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 14px; min-height: 52px; text-align: left; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.opt b { font-weight: 700; }
+.opt span { font-size: 14px; color: var(--muted); }
+.opt.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.opt.on span { color: inherit; opacity: .85; }
+.obgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.obgrid label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.obfoot { display: flex; gap: 10px; }
 details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 14px; min-height: 32px; display: flex; align-items: center; }
 details.more[open] summary { margin-bottom: 8px; }
 @media (prefers-reduced-motion: no-preference) { .pop { animation: pop .55s cubic-bezier(.2, 1.5, .4, 1) both; } @keyframes pop { from { transform: scale(.6); opacity: 0; } } }
@@ -370,18 +391,10 @@ const ICON = {
   right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
   down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
-  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
 };
 
-
-const STARTER = () => ({
-  units: "kg",
-  days: [
-    { name: "Push", ex: [["Bench press", 3, "6-8"], ["Overhead press", 3, "8-10"], ["Incline dumbbell press", 3, "8-12"], ["Lateral raise", 3, "12-15"], ["Triceps pushdown", 3, "10-12"]] },
-    { name: "Pull", ex: [["Deadlift", 3, "5"], ["Pull-up", 3, "6-10"], ["Barbell row", 3, "8-10"], ["Face pull", 3, "12-15"], ["Biceps curl", 3, "10-12"]] },
-    { name: "Legs", ex: [["Back squat", 3, "5-8"], ["Romanian deadlift", 3, "8-10"], ["Leg press", 3, "10-12"], ["Leg curl", 3, "10-12"], ["Calf raise", 3, "12-15"]] }
-  ].map(d => ({ id: uid(), name: d.name, exercises: d.ex.map(([name, sets, reps]) => ({ id: uid(), name, sets, reps })) }))
-});
 
 // Pull-up level: plan exercises with a `slot` take name, sets, reps, rest and note from here; {pull} and {ttb} in metcon text likewise.
 const LEVELS = {
@@ -417,15 +430,19 @@ const S = {
   plan: null, planLoaded: false,
   journey: null, journeyLoaded: false,   // phases, goals, benchmarks, exercise links
   sessions: new Map(), sessionsLoaded: false,
-  progTab: ls.get("liftlog.progTab") || "lifts", planTab: ls.get("liftlog.planTab") || "plan", phaseForm: null,
+  progTab: (t => ["lifts", "bench", "goals", "trophies"].includes(t) ? t : "lifts")(ls.get("liftlog.progTab")),
+  planTab: ls.get("liftlog.planTab") === "phases" ? "phases" : "plan", phaseForm: null, settings: false,
   view: (() => { const h = location.hash.slice(1); return ["train", "history", "progress", "plan"].includes(h) ? h : (ls.get("liftlog.view") || "train"); })(),
   sheetId: null,
   calMonth: null, calDay: null,
   progEx: ls.get("liftlog.progEx"), progMetric: ls.get("liftlog.progMetric") || "e1rm",
   restAt: null, justFinished: null,
-  armed: null, sync: "idle", toast: null
+  armed: null, sync: "idle", toast: null,
+  onb: null, onbLater: false   // questionnaire in progress; skipped for this visit
 };
-const units = () => (S.plan && S.plan.units) || "kg";
+// one app-wide setting (Settings → Advanced): metric is kg and cm, imperial is lb and ft/in
+const imperial = () => (J().settings || {}).units === "imperial";
+const units = () => imperial() ? "lb" : "kg";
 
 /* ---------- storage: claude.ai db, local fallback, outbox for unsent writes ---------- */
 let db = null;
@@ -439,12 +456,14 @@ function setSync(s) {
   if (S.sync === s) return; S.sync = s;
   const el = app.querySelector(".topbar .sync"); if (el) el.outerHTML = syncHTML();
 }
+// on narrow screens only the dot shows, except for errors
 function syncHTML() {
-  if (S.mode === "local") return '<span class="sync"><i></i>On this device</span>';
-  if (S.sync === "error") return '<span class="sync err"><i></i>Not saved <button data-a="retry">Retry</button></span>';
-  if (S.sync === "saving" || dirty.size) return '<span class="sync busy"><i></i>Saving…</span>';
-  if (S.mode === "cloud") return '<span class="sync ok"><i></i>Saved</span>';
-  return '<span class="sync"><i></i>Loading…</span>';
+  const tag = (cls, txt) => `<span class="sync${cls}" title="${txt}" role="status"><i></i><span class="st">${txt}</span></span>`;
+  if (S.mode === "local") return tag("", "On this device");
+  if (S.sync === "error") return '<span class="sync err" role="status"><i></i>Not saved <button data-a="retry">Retry</button></span>';
+  if (S.sync === "saving" || dirty.size) return tag(" busy", "Saving…");
+  if (S.mode === "cloud") return tag(" ok", "Saved");
+  return tag("", "Loading…");
 }
 
 function saveLocalAll() { ls.set("liftlog.local", { plan: S.plan, journey: S.journey, sessions: [...S.sessions.values()] }); }
@@ -672,6 +691,8 @@ function fixJourney() {
   let changed = !j.updatedAt;
   for (const k of ["phases", "goals", "benchmarks"]) if (!Array.isArray(j[k])) { j[k] = []; changed = true; }
   if (!j.aliases) { j.aliases = {}; changed = true; }
+  // units used to live on the plan and the profile
+  if (!j.settings) { j.settings = { units: (S.plan && S.plan.units === "lb") || (j.profile && j.profile.units === "imperial") ? "imperial" : "metric" }; changed = true; }
   if (!j.phases.length) { const fin = finished(); j.phases.push({ id: uid(), name: "Phase 1", focus: "", start: fin.length ? fin[fin.length - 1].date : todayStr(), end: null }); changed = true; }
   if (!j.phases.some(p => p.id === j.currentPhaseId)) { const ps = phases(); j.currentPhaseId = ps[ps.length - 1].id; changed = true; }
   if (changed) saveJourney(0);
@@ -679,13 +700,6 @@ function fixJourney() {
 
 // milestone metric: r reps, s seconds, m metres (all logged in the reps column), w heaviest weight
 const metU = k => k === "w" ? units() : { s: "s", m: "m" }[k] || "reps";
-const GOAL_PRESETS = [
-  { name: "Handstand walk", ms: [["60 s wall handstand hold", "Wall handstand hold", 60, "s"], ["10 s freestanding handstand", "Freestanding handstand hold", 10, "s"], ["30 s freestanding handstand", "Freestanding handstand hold", 30, "s"], ["First 2 m handstand walk", "Handstand walk", 2, "m"], ["5 m handstand walk", "Handstand walk", 5, "m"], ["10 m unbroken handstand walk", "Handstand walk", 10, "m"]] },
-  { name: "Muscle-up", ms: [["10 strict pull-ups", "Strict pull-ups", 10, "r"], ["5 chest-to-bar pull-ups", "Chest to bar", 5, "r"], ["10 straight bar dips", "Straight bar dips", 10, "r"], ["First muscle-up", "Muscle-ups", 1, "r"], ["3 unbroken muscle-ups", "Muscle-ups", 3, "r"], ["5 unbroken muscle-ups", "Muscle-ups", 5, "r"]] },
-  { name: "Strict handstand push-up", ms: [["5 box pike push-ups", "Box pike push-ups", 5, "r"], ["3 slow handstand push-up negatives", "Handstand push-up negatives", 3, "r"], ["First strict handstand push-up", "Strict handstand push-ups", 1, "r"], ["5 strict handstand push-ups", "Strict handstand push-ups", 5, "r"]] }
-];
-const BENCH_SUGGEST = [["Max strict pull-ups", "reps"], ["Max push-ups", "reps"], ["Max dips", "reps"], ["Wall handstand hold", "s"], ["Freestanding handstand hold", "s"], ["Hollow body hold", "s"], ["Back squat", ""], ["Deadlift", ""]];
-
 // best value per workout for one exercise, oldest first
 function reachLog(ex, metric) {
   return cached("rl:" + norm(canon(ex)) + ":" + metric, () => {
@@ -828,8 +842,314 @@ function weekBars(weeks, n = 12) {
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Workouts per week, last ${n} weeks">${s}</svg>`;
 }
 
+/* ---------- profile: questionnaire answers set the plan, goal milestones and benchmarks ---------- */
+const SPORTS = [["gym", "Gym / weights"], ["crossfit", "CrossFit"], ["gymnastics", "Gymnastics / calisthenics"], ["running", "Running"], ["cycling", "Cycling"], ["swimming", "Swimming"], ["team", "Team sports"], ["martial", "Martial arts"], ["climbing", "Climbing"], ["yoga", "Yoga / pilates"], ["none", "Nothing regular"]];
+const EXPERIENCE = [["new", "Never"], ["under1", "Under a year"], ["1to3", "1–3 years"], ["3plus", "3+ years"]];
+const AREAS = [["push", "Pushing"], ["pull", "Pulling"], ["legs", "Legs"], ["core", "Core"], ["engine", "Endurance"], ["mobility", "Mobility"], ["balance", "Balance"]];
+const PULL_LV = ["0", "1–2", "3–5", "6–10", "11+"], PUSH_LV = ["0–5", "6–15", "16–30", "31+"];
+const HS_LV = ["Not yet", "Against a wall", "Freestanding, a few seconds", "I can walk on my hands"];
+const PULL_EST = [0, 1, 4, 8, 12], PUSH_EST = [3, 10, 22, 35];
+const EQUIP = [["gym", "Full gym", "Barbells, racks, cables and machines"], ["home", "Dumbbells and a pull-up bar", "A home setup or a small gym"], ["bw", "Bodyweight only", "A pull-up bar, a floor and a wall"]];
+const LIMITS = [["shoulders", "Shoulders"], ["wrists", "Wrists or elbows"], ["back", "Lower back"], ["knees", "Knees"]];
+const ENDURANCE = ["running", "cycling", "swimming", "team", "martial", "crossfit"];
+const GOALS = [
+  ["strength", "Get stronger", "Heavier lifts, with targets set against your body weight."],
+  ["muscle", "Build muscle", "More size and shape: moderate weights, more sets."],
+  ["fitness", "Get fitter", "Better all-round fitness and a stronger engine."],
+  ["pullup", "First strict pull-up", "From hanging to chin over the bar."],
+  ["muscleup", "Muscle-up", "Pull-up strength first, then the move over the bar."],
+  ["handstand", "Handstand walk", "From wall holds to walking on your hands."],
+  ["hspu", "Strict handstand push-up", "Pike push-ups up to full handstand push-ups."]
+];
+const SKILL_SIDE = { handstand: "push", hspu: "push", muscleup: "pull", pullup: "pull" };
+const FOCUS = { strength: ["push", "pull", "legs"], muscle: ["push", "pull", "legs"], fitness: ["engine"], pullup: ["pull"], muscleup: ["pull"], handstand: ["push", "balance"], hspu: ["push", "balance"] };
+const optLabel = (list, k) => (list.find(x => x[0] === k) || [])[1] || "";
+const goalName = k => optLabel(GOALS, k) || k;
+const bodyW = p => imperial() ? p.weightKg * 2.20462 : p.weightKg;
+const roundW = x => { const s = imperial() ? 5 : 2.5; return Math.round(x / s) * s; };
+const bmi = p => p.heightCm && p.weightKg ? p.weightKg / (p.heightCm / 100) ** 2 : 0;
+const feetIn = cm => { const t = Math.round(cm / 2.54); return [Math.floor(t / 12), t % 12]; };
+const interleave = (...ls) => { const out = []; for (let i = 0; ls.some(l => i < l.length); i++) for (const l of ls) if (i < l.length) out.push(l[i]); return out; };
+const planMode = p => ["strength", "muscle", "fitness"].find(k => p.goals.includes(k)) || "skill";
+
+// one exercise per movement slot, picked for equipment, level and what hurts; sets/reps given here are fixed, others follow the goal
+function exLib(p) {
+  const e = p.equip, L = new Set(p.limits), pull = p.pull, push = p.push, exp = p.experience, soft = L.has("knees") || bmi(p) >= 30;
+  const wr = L.has("wrists") ? "Push-up handles or fists if your wrists complain." : "";
+  const pick = (gym, home, bw) => e === "gym" ? gym : e === "home" ? home : bw;
+  return {
+    vpull: [{ name: "Pull-up negatives", sets: 4, reps: "3-5", rest: 120, note: "Jump to the top, lower for 5 s." },
+      { name: "Pull-up negatives", sets: 4, reps: "3-5", rest: 120, note: "Lower for 5 s. Try one strict rep before the first set." },
+      { name: "Strict pull-ups", sets: 5, reps: "2-4", rest: 120, note: "Full hang to chin over the bar." },
+      { name: "Strict pull-ups", sets: 4, reps: "5-8", rest: 120, note: e === "bw" ? "At 4 × 8, slow the lowering to 3 s." : `At 4 × 8, add ${imperial() ? "5 lb" : "2.5 kg"} on a belt.` },
+      e === "bw" ? { name: "Strict pull-ups", sets: 5, reps: "8-12", rest: 120 } : { name: "Weighted pull-ups", sets: 5, reps: "3-5", rest: 150 }][pull],
+    hpush: pick({ name: "Bench press", main: 1 }, { name: "Dumbbell floor press", main: 1 },
+      [{ name: "Incline push-ups", sets: 3, reps: "8-12", note: ("Hands on a bench or table. Go lower as it gets easy. " + wr).trim() }, { name: "Push-ups", sets: 3, reps: "8-15", note: wr },
+        { name: "Push-ups", sets: 4, reps: "15-25", note: ("Wear a loaded backpack when 4 × 25 is easy. " + wr).trim() }, { name: "Archer push-ups", sets: 4, reps: "5-8", note: ("Each side. " + wr).trim() }][push]),
+    hpush2: pick({ name: "Incline dumbbell press" }, { name: push ? "Push-ups" : "Incline push-ups", note: wr },
+      push >= 2 && !L.has("shoulders") ? { name: "Dips", sets: 3, reps: "6-12", note: "Parallel bars, rings or two sturdy chairs." } : { name: push ? "Diamond push-ups" : "Incline push-ups", sets: 3, reps: "8-12", note: wr }),
+    vpush: L.has("shoulders") ? pick({ name: "Landmine press", main: 1, note: "Pain-free range only." }, { name: "Half-kneeling one-arm press", note: "Pain-free range only." }, { name: "Incline pike push-ups", sets: 3, reps: "6-10", note: "Pain-free range only." })
+      : pick({ name: "Overhead press", main: 1 }, { name: "Dumbbell shoulder press", main: 1 }, { name: "Pike push-ups", sets: 3, reps: push >= 2 ? "8-12" : "5-8", note: ("Hips high, head to the floor between your hands. " + wr).trim() }),
+    hpull: pick({ name: L.has("back") ? "Chest-supported row" : "Barbell row", main: 1 }, { name: "One-arm dumbbell row" }, { name: "Inverted rows", sets: 3, reps: "8-12", note: "Under a low bar or a sturdy table. Walk your feet forward to make it harder." }),
+    squat: L.has("knees") ? pick({ name: "Box squat", main: 1, note: "Pain-free depth to the box." }, { name: "Goblet box squat", note: "Pain-free depth to the box." }, { name: "Box squats", sets: 3, reps: "12-20", note: "Pain-free depth to the box." })
+      : pick({ name: L.has("back") ? "Goblet squat" : "Back squat", main: 1 }, { name: "Goblet squat", main: 1 },
+        exp === "new" || exp === "under1" ? { name: "Bodyweight squats", sets: 3, reps: "15-25" } : { name: "Pistol squats", sets: 3, reps: "3-6", note: "Each leg. Sit to a box at first and lower it over time." }),
+    squat2: pick({ name: "Leg press" }, { name: "Dumbbell front squat" }, soft ? { name: "Wall sit", sets: 3, reps: "30-60", unit: "s" } : { name: "Jump squats", sets: 3, reps: "8-12", note: "Land softly." }),
+    hinge: L.has("back") ? pick({ name: "Hip thrust", main: 1 }, { name: "Dumbbell hip thrust" }, { name: "Glute bridge", sets: 3, reps: "12-20" })
+      : pick({ name: "Deadlift", main: 1 }, { name: "Dumbbell Romanian deadlift", main: 1 }, { name: "Single-leg hip thrust", sets: 3, reps: "10-15", note: "Each leg." }),
+    hinge2: pick({ name: L.has("back") ? "Leg curl" : "Romanian deadlift" }, { name: "Single-leg dumbbell RDL", note: "Each leg." },
+      exp === "new" ? { name: "Glute bridge", sets: 3, reps: "12-20" } : { name: "Nordic curl negatives", sets: 3, reps: "3-5", note: "Feet under a sofa or held by a partner. Lower as slowly as you can." }),
+    single: L.has("knees") ? { name: "Step-ups", sets: e === "bw" ? 3 : undefined, reps: e === "bw" ? "10-12" : undefined, note: "Each leg. Pick a box height that doesn't hurt." }
+      : pick({ name: "Bulgarian split squat", note: "Each leg." }, { name: "Bulgarian split squat", note: "Each leg." }, { name: "Reverse lunges", sets: 3, reps: "10-12", note: "Each leg." }),
+    power: !soft && p.sports.some(s => s === "team" || s === "martial") ? { name: "Box jumps", sets: 3, reps: "5", rest: 90, note: "Step down, don't jump down." } : null,
+    core: p.goals.includes("fitness") ? { name: "Plank", sets: 3, reps: "30-60", unit: "s" } : L.has("back") ? { name: "Dead bug", sets: 3, reps: "8-10", note: "Each side. Lower back stays on the floor." } : { name: "Hanging knee raises", sets: 3, reps: "8-12", note: "No swing." },
+    core2: { name: "Hollow body hold", sets: 3, reps: "20-40", unit: "s" },
+    arms: pick({ name: "Biceps curl" }, { name: "Dumbbell curl" }, pull >= 2 ? { name: "Chin-ups", sets: 3, reps: "5-10" } : null),
+    arms2: pick({ name: "Triceps pushdown" }, { name: "Overhead triceps extension" }, push >= 1 ? { name: "Diamond push-ups", sets: 3, reps: "6-12", note: wr } : null),
+    shoulders: e === "bw" ? { name: "Prone Y-raises", sets: 3, reps: "10-15" } : { name: e === "gym" ? "Face pull" : "Lateral raise" },
+    calves: { name: e === "bw" ? "Single-leg calf raise" : "Calf raise" }
+  };
+}
+// skill practice for a goal, starting from the level the athlete reported
+function skillEx(k, p) {
+  const pull = p.pull, push = p.push, hs = p.hs, wr = p.limits.includes("wrists") ? " Warm up your wrists first; parallettes help if they hurt." : "";
+  if (k === "handstand") return [
+    [{ name: "Wall handstand hold", sets: 4, reps: "20-40", unit: "s", note: "Chest to the wall, body in one line." + wr }, { name: "Wall walks", sets: 3, reps: "2-3", note: "Walk up only as far as feels safe." }],
+    [{ name: "Wall handstand hold", sets: 4, reps: "45-60", unit: "s", note: "Chest to the wall. Take your toes off for a second at a time." + wr }, { name: "Freestanding handstand hold", sets: 6, reps: "3-10", unit: "s", note: "Learn to bail first: turn out into a cartwheel." }],
+    [{ name: "Freestanding handstand hold", sets: 8, reps: "10-30", unit: "s", note: "Push tall through your shoulders." + wr }, { name: "Handstand walk", sets: 6, reps: "1-3", unit: "m", note: "Small steps. The lean comes from your shoulders." }],
+    [{ name: "Handstand walk", sets: 6, reps: "5-10", unit: "m", note: "Unbroken. Rest fully between sets." + wr }, { name: "Freestanding handstand hold", sets: 4, reps: "30-45", unit: "s" }]][hs];
+  if (k === "hspu") return [
+    [{ name: "Pike push-ups", sets: 4, reps: "6-10", note: "Hips high, head to the floor between your hands." + wr }, { name: "Box pike push-ups", sets: 3, reps: "3-6", note: "Feet on a box, hips over your hands." }],
+    [{ name: "Box pike push-ups", sets: 4, reps: "5-8", note: "Feet on a box, hips over your hands." + wr }, { name: "Handstand push-up negatives", sets: 4, reps: "2-3", note: "Against the wall. Lower for 4–5 s onto a pad." }],
+    [{ name: "Handstand push-up negatives", sets: 4, reps: "3", note: "Against the wall. Lower for 4–5 s onto a pad." + wr }, { name: "Strict handstand push-ups", sets: 5, reps: "1-3", note: "Fresh singles are fine." }]][push >= 2 && hs >= 1 ? (push >= 3 ? 2 : 1) : 0];
+  if (k === "muscleup") return pull < 2 ? [{ name: "Dips", sets: 3, reps: "3-8", note: "Parallel bars or rings. Lower slowly if you can't press up yet." }]
+    : pull < 4 ? [{ name: "Chest to bar pull-ups", sets: 5, reps: "2-4", note: "Pull hard and fast; chest touches the bar." }, { name: "Dips", sets: 3, reps: "8-12", note: "Parallel bars or rings." }]
+    : [{ name: "Muscle-up transitions", sets: 5, reps: "3", note: "Low bar or rings, feet on the floor. Drill the turn over the bar." }, { name: "Muscle-ups", sets: 5, reps: "1-2", note: "Fresh singles. Stop when they get ugly." }];
+  if (k === "pullup") return [{ name: "Dead hang", sets: 3, reps: "20-40", unit: "s" }, { name: "Scapular pull-ups", sets: 3, reps: "6-10", note: "Arms straight. Pull your shoulders down and back." }];
+  return [];
+}
+const SPLITS = {
+  2: [["Full body A", "full", ["power", "squat", "hpush", "vpull", "hinge2", "core", "arms", "shoulders"]], ["Full body B", "full", ["hinge", "vpush", "hpull", "single", "core", "arms2", "calves"]]],
+  3: [["Full body A", "full", ["power", "squat", "hpush", "vpull", "hinge2", "core", "arms", "shoulders"]], ["Full body B", "full", ["hinge", "vpush", "hpull", "single", "core", "arms2", "calves"]], ["Full body C", "full", ["squat2", "hpush2", "vpull", "hinge2", "core2", "arms", "shoulders"]]],
+  4: [["Upper A", "upper", ["hpush", "vpull", "vpush", "hpull", "arms", "arms2", "shoulders"]], ["Lower A", "lower", ["power", "squat", "hinge2", "single", "core", "calves"]], ["Upper B", "upper", ["vpush", "hpull", "hpush2", "vpull", "shoulders", "arms", "arms2"]], ["Lower B", "lower", ["hinge", "squat2", "single", "core2", "calves"]]],
+  5: [["Push", "push", ["hpush", "vpush", "hpush2", "shoulders", "arms2", "core"]], ["Pull", "pull", ["vpull", "hpull", "hinge2", "arms", "core2"]], ["Legs", "lower", ["power", "squat", "hinge2", "single", "calves", "core"]], ["Upper", "upper", ["vpush", "hpull", "hpush2", "vpull", "shoulders", "arms", "arms2"]], ["Lower", "lower", ["hinge", "squat2", "single", "core2", "calves"]]],
+  6: [["Push A", "push", ["hpush", "vpush", "hpush2", "shoulders", "arms2", "core"]], ["Pull A", "pull", ["vpull", "hpull", "arms", "shoulders", "core2"]], ["Legs A", "lower", ["power", "squat", "hinge2", "single", "calves", "core"]], ["Push B", "push", ["vpush", "hpush2", "hpush", "shoulders", "arms2", "core2"]], ["Pull B", "pull", ["hpull", "vpull", "arms", "shoulders", "core"]], ["Legs B", "lower", ["hinge", "squat2", "single", "calves", "core2"]]]
+};
+const AREA_OF = { squat: "legs", squat2: "legs", hinge: "legs", hinge2: "legs", single: "legs", calves: "legs", power: "legs", hpush: "push", hpush2: "push", vpush: "push", arms2: "push", shoulders: "push", hpull: "pull", vpull: "pull", arms: "pull", core: "core", core2: "core" };
+const EXTRA = { push: "hpush2", pull: "hpull", legs: "single", core: "core2" };
+const covers = (type, area) => area === "core" || type === "full" || (type === "upper" && (area === "push" || area === "pull")) || (type === "lower" && area === "legs") || type === area;
+function finisherWod(p) {
+  const soft = bmi(p) >= 30 || p.limits.includes("knees");
+  if (p.sports.some(s => ENDURANCE.includes(s))) return "8 rounds:\n30 s hard, 30 s easy\nBike, rower or run";
+  if (p.equip === "gym") return soft ? "12 min, as many rounds as you can:\n10 cal bike\n10 kettlebell deadlifts\n20 s plank" : "4 rounds:\n250 m row\n10 kettlebell swings\n10 push-ups\nRest 1 min";
+  return soft ? "12 min EMOM:\nOdd minutes: 40 s fast step-ups\nEven minutes: 30 s plank" : "12 min EMOM:\nOdd minutes: 10 burpees\nEven minutes: 30 s plank";
+}
+function buildPlan(p) {
+  const lib = exLib(p), g = p.goals, md = planMode(p), newbie = p.experience === "new", older = p.age >= 50;
+  const R = { strength: { main: newbie ? [3, "5", 150] : [5, "3-5", 180], acc: [3, "8-10", 90] }, muscle: { main: newbie ? [3, "8-10", 120] : [4, "6-10", 120], acc: [3, "10-15", 60] },
+    fitness: { main: [3, "8-12", 90], acc: [3, "12-15", 60] }, skill: { main: [3, "6-10", 120], acc: [3, "10-12", 60] } }[md];
+  const focus = new Set(g.flatMap(k => FOCUS[k] || [])), budget = Math.max(3, Math.round(p.minutes / 11));
+  const engine = g.includes("fitness") ? "all" : p.weak.includes("engine") ? "some" : "";
+  const days = SPLITS[p.days].map(([name, type, pats], di) => {
+    const out = [], add = (e, block) => { if (e && !out.some(x => x.name === e.name)) out.push({ id: uid(), ...e, ...(block ? { block } : {}) }); };
+    const sk = g.filter(k => SKILL_SIDE[k] && (type === "full" || type === "upper" || type === SKILL_SIDE[k])).flatMap(k => skillEx(k, p));
+    if (p.weak.includes("balance") && !g.includes("handstand") && !g.includes("hspu") && ["full", "upper", "push"].includes(type)) sk.push(skillEx("handstand", p)[0]);
+    sk.slice(0, budget <= 4 ? 2 : 3).forEach(e => add({ rest: 90, ...e }, "Skill"));
+    const fin = engine === "all" || (engine === "some" && di % 2 === 0);
+    // two short skill drills take about the time of one lift
+    const room = Math.max(3, budget - Math.ceil(out.length / 2) - (fin ? 1 : 0)), list = pats.filter(pt => lib[pt]);
+    // weak areas: their extra exercise moves up to third place, so it survives a short session
+    for (const a of p.weak) if (EXTRA[a] && covers(type, a)) { const i = list.indexOf(EXTRA[a]); if (i < 0 || i > 2) { if (i >= 0) list.splice(i, 1); list.splice(2, 0, EXTRA[a]); } }
+    // pull-up goals: the pull-up work goes first
+    if ((g.includes("pullup") || g.includes("muscleup")) && list.includes("vpull")) list.splice(0, 0, ...list.splice(list.indexOf("vpull"), 1));
+    let n = 0;
+    for (const pt of list) {
+      const base = lib[pt]; if (n >= room) break; if (!base) continue;
+      const main = !!base.main && n < 2, [s, r, rest] = main ? R.main : R.acc;
+      const e = { name: base.name, sets: base.sets || s, reps: base.reps || r, rest: (base.rest || rest) + (older ? 30 : 0) };
+      if (base.unit) e.unit = base.unit;
+      const note = [base.note, newbie && main ? "Start light and leave 3 reps in the tank." : ""].filter(Boolean).join(" ");
+      if (note) e.note = note;
+      if (p.strong.includes(AREA_OF[pt]) && !focus.has(AREA_OF[pt])) e.sets = Math.max(2, e.sets - 1);
+      const k = out.length; add(e); if (out.length > k) n++;
+    }
+    if (fin) add({ kind: "metcon", name: "Finisher", wod: finisherWod(p) }, "Conditioning");
+    if (p.weak.includes("mobility") && !p.sports.includes("yoga")) add({ kind: "info", name: "Mobility, 8 min", note: "Hips, hamstrings, shoulders and upper back. Easy holds of 30–45 s each." }, "Cool-down");
+    if (out.some(x => x.block)) for (const x of out) if (!x.block) x.block = "Strength";
+    return { id: uid(), name, exercises: out };
+  });
+  return { days, weeklyTarget: p.days, rules: planRules(p), why: planWhy(p, md), goalKeys: g.slice() };
+}
+function planRules(p) {
+  const u = units(), R = [];
+  if (p.experience === "new" || p.experience === "under1") R.push("First two weeks: pick weights that leave 3 reps in the tank and learn the movements.");
+  if (p.equip !== "bw") R.push(`When every set reaches the top of the rep range, add weight next time: ${u === "lb" ? "5 lb" : "2.5 kg"} on upper-body lifts, ${u === "lb" ? "10 lb" : "5 kg"} on legs.`);
+  R.push("Bodyweight exercises: add reps until you reach the top of the range, then move to the harder version.");
+  if (p.goals.some(k => SKILL_SIDE[k])) R.push("Skill work comes first. Stop a set when your form breaks.");
+  R.push("Test your benchmarks every 6 weeks on the Benchmarks day. Lift Log reminds you.");
+  return R;
+}
+function planWhy(p, md) {
+  const W = [], focus = new Set(p.goals.flatMap(k => FOCUS[k] || [])), lc = (list, ks) => ks.map(k => optLabel(list, k).toLowerCase()).join(", ");
+  W.push(`${p.days} days a week, about ${p.minutes} minutes each: ${{ 2: "two full-body days", 3: "three full-body days", 4: "an upper / lower split", 5: "push, pull and legs, plus upper and lower", 6: "push, pull and legs, twice" }[p.days]}.`);
+  W.push({ strength: "Built to make you stronger: heavy main lifts first, low reps, long rests.", muscle: "Built for muscle: moderate weights, 6–15 reps and enough sets for each muscle every week.", fitness: "Built for all-round fitness: strength work plus a short conditioning finisher.", skill: "Built around your skill goals, with strength work that supports them." }[md]);
+  const sk = p.goals.filter(k => SKILL_SIDE[k]);
+  if (sk.length) W.push(`${sk.map(goalName).join(" and ")} practice comes first in the session while you're fresh, starting from your current level.`);
+  const extra = p.weak.filter(a => !(a === "mobility" && p.sports.includes("yoga")) && !(a === "balance" && (p.goals.includes("handstand") || p.goals.includes("hspu"))));
+  if (extra.length) W.push(`Extra work for ${lc(AREAS, extra)}, which you want to improve.`);
+  const strong = p.strong.filter(a => ["push", "pull", "legs", "core"].includes(a) && !focus.has(a));
+  if (strong.length) W.push(`One set less for ${lc(AREAS, strong)}: already a strength, so it only needs maintaining.`);
+  if (p.sports.some(s => ENDURANCE.includes(s)) && (md === "fitness" || p.weak.includes("engine"))) W.push("You already have an endurance base, so conditioning is short, hard intervals.");
+  if (p.sports.some(s => s === "team" || s === "martial") && exLib(p).power) W.push("Box jumps keep the power you built in your sport.");
+  if (p.sports.includes("yoga") && p.weak.includes("mobility")) W.push("No extra mobility block: your yoga practice already covers it.");
+  if (p.experience === "new") W.push("You're new to training, so main lifts start with fewer, lighter sets to learn the movements.");
+  if (p.limits.length) W.push(`Adjusted for your ${lc(LIMITS, p.limits)}: swapped exercises and pain-free ranges. If something hurts, get it checked by a physio or doctor.`);
+  if (bmi(p) >= 30) W.push("Low-impact conditioning and leg work, to go easy on your joints.");
+  if (p.age >= 50) W.push("Longer rests between sets. Warm up for 10 minutes before you start.");
+  if (p.equip === "gym" && p.goals.some(k => k === "strength" || k === "muscle")) W.push(`Strength milestones are set against your body weight (${fmt(bodyW(p), 0)} ${units()}).`);
+  if (p.equip === "bw") W.push("Bodyweight only: you need a pull-up bar, a floor and a wall.");
+  return W;
+}
+// milestone ladders start above what the athlete can already do; exercise names match the plan so they tick themselves
+function goalMilestones(k, p) {
+  const lib = exLib(p), pe = PULL_EST[p.pull], pu = PUSH_EST[p.push], hs = p.hs, u = units(), bw = bodyW(p);
+  const M = (name, ex, target, metric) => ({ name, ex, target, metric });
+  const reps = (ex, est, tiers, one, many) => tiers.filter(t => t > est).map(t => M(t === 1 ? "First " + one : t + " " + many, ex, t, "r"));
+  const lift = (ex, x) => M(`${ex} ${fmt(roundW(bw * x))} ${u} (${x === 1 ? "" : fmt(x, 2) + " × "}body weight)`, ex, roundW(bw * x), "w");
+  const pulls = (t) => reps("Strict pull-ups", pe, t, "strict pull-up", "strict pull-ups"), pushes = t => reps("Push-ups", pu, t, "push-up", "push-ups");
+  let ms = [];
+  if ((k === "strength" || k === "muscle") && p.equip === "gym") {
+    const L = { s: lib.squat.name === "Back squat" && "Back squat", b: "Bench press", d: lib.hinge.name === "Deadlift" && "Deadlift" };
+    const start = { new: { s: 0, b: 0, d: 0 }, under1: { s: .75, b: .5, d: 1 }, "1to3": { s: 1, b: .75, d: 1.25 }, "3plus": { s: 1.25, b: 1, d: 1.5 } }[p.experience];
+    const steps = k === "strength" ? [["s", .75], ["b", .5], ["d", 1], ["s", 1], ["b", .75], ["d", 1.25], ["s", 1.25], ["b", 1], ["d", 1.5], ["s", 1.5], ["b", 1.25], ["d", 2], ["s", 2]]
+      : [["b", .5], ["s", .75], ["b", .75], ["s", 1], ["b", 1], ["s", 1.25], ["b", 1.25]];
+    const lifts = steps.filter(([l, x]) => L[l] && x > start[l]).map(([l, x]) => lift(L[l], x));
+    ms = k === "strength" ? lifts : interleave(lifts, pulls([5, 10, 15]));
+  } else if (k === "strength" || k === "muscle") {
+    const legs = lib.squat.name === "Pistol squats" ? [M("First pistol squat on each leg", "Pistol squats", 1, "r"), M("5 pistol squats on each leg", "Pistol squats", 5, "r")] : lib.squat.name === "Bodyweight squats" ? [M("50 bodyweight squats unbroken", "Bodyweight squats", 50, "r")] : [];
+    ms = interleave(pulls([1, 3, 5, 8, 10, 12, 15, 20]).slice(0, 2), pushes([10, 20, 30, 40, 50]).slice(0, 2), legs);
+  } else if (k === "fitness") ms = interleave(pushes([10, 20, 30, 40, 50]).slice(0, 2), pe ? pulls([3, 5, 8, 10, 15]).slice(0, 2) : [M("30 s dead hang", "Dead hang", 30, "s")], [M("60 s plank", "Plank", 60, "s"), M("2 min plank", "Plank", 120, "s")]);
+  else if (k === "pullup") ms = [...(pe ? [] : [M("30 s dead hang", "Dead hang", 30, "s"), M("5 slow pull-up negatives", "Pull-up negatives", 5, "r")]), ...pulls([1, 3, 5])];
+  else if (k === "muscleup") ms = [...pulls([5, 10]), M("10 dips", "Dips", 10, "r"), ...(p.pull < 4 ? [M("5 chest-to-bar pull-ups", "Chest to bar pull-ups", 5, "r")] : []), M("First muscle-up", "Muscle-ups", 1, "r"), M("3 unbroken muscle-ups", "Muscle-ups", 3, "r")];
+  else if (k === "handstand") ms = [[1, M("30 s wall handstand hold", "Wall handstand hold", 30, "s")], [2, M("60 s wall handstand hold", "Wall handstand hold", 60, "s")], [2, M("10 s freestanding handstand", "Freestanding handstand hold", 10, "s")], [3, M("30 s freestanding handstand", "Freestanding handstand hold", 30, "s")], [3, M("First 2 m handstand walk", "Handstand walk", 2, "m")], [9, M("5 m handstand walk", "Handstand walk", 5, "m")], [9, M("10 m unbroken handstand walk", "Handstand walk", 10, "m")]].filter(([lv]) => hs < lv).map(x => x[1]);
+  else if (k === "hspu") { const lv = p.push >= 2 && hs >= 1 ? (p.push >= 3 ? 2 : 1) : 0; ms = [[1, M("10 pike push-ups", "Pike push-ups", 10, "r")], [1, M("5 box pike push-ups", "Box pike push-ups", 5, "r")], [2, M("3 slow handstand push-up negatives", "Handstand push-up negatives", 3, "r")], [9, M("First strict handstand push-up", "Strict handstand push-ups", 1, "r")], [9, M("5 strict handstand push-ups", "Strict handstand push-ups", 5, "r")]].filter(([l]) => lv < l).map(x => x[1]); }
+  return ms.slice(0, 6);
+}
+// benchmarks: the tests that show progress toward the chosen goals, at most five
+function buildBench(p) {
+  const lib = exLib(p), out = [], add = (name, unit) => { if (!out.some(b => b.name === name)) out.push({ id: uid(), name, unit }); };
+  const pullB = () => p.pull ? add("Strict pull-ups", "reps") : add("Dead hang", "s");
+  for (const k of p.goals) {
+    if ((k === "strength" || k === "muscle") && p.equip === "gym") { add(lib.squat.name, ""); add(lib.hpush.name, ""); if (k === "strength") add(lib.hinge.name, ""); else pullB(); }
+    else if (k === "strength" || k === "muscle") { pullB(); add("Push-ups", "reps"); }
+    else if (k === "fitness") { add("Push-ups", "reps"); pullB(); add("Plank", "s"); }
+    else if (k === "pullup") { add("Dead hang", "s"); add("Strict pull-ups", "reps"); }
+    else if (k === "muscleup") { add("Strict pull-ups", "reps"); add("Dips", "reps"); }
+    else if (k === "handstand") add(p.hs < 2 ? "Wall handstand hold" : p.hs < 3 ? "Freestanding handstand hold" : "Handstand walk", p.hs < 3 ? "s" : "m");
+    else if (k === "hspu") add(p.push >= 2 && p.hs >= 1 ? (p.push >= 3 ? "Strict handstand push-ups" : "Box pike push-ups") : "Pike push-ups", "reps");
+  }
+  return out.slice(0, 5);
+}
+const benchUnit = b => b.unit === "reps" ? "max reps" : b.unit === "s" ? "seconds" : b.unit === "m" ? "metres" : "heaviest " + units();
+function profileLines(p) {
+  const [ft, inch] = feetIn(p.heightCm), lc = (list, ks) => ks.map(k => optLabel(list, k).toLowerCase()).join(", ");
+  return [
+    `${imperial() ? `${ft}′${inch}″` : Math.round(p.heightCm) + " cm"} · ${fmt(bodyW(p), 0)} ${units()}${p.age ? " · " + p.age + " years" : ""}`,
+    `Background: ${p.sports.map(s => optLabel(SPORTS, s)).join(", ")} · ${p.experience === "new" ? "new to training" : optLabel(EXPERIENCE, p.experience) + " of training"}`,
+    `Now: ${PULL_LV[p.pull]} pull-ups, ${PUSH_LV[p.push]} push-ups, handstand ${HS_LV[p.hs].toLowerCase()}`,
+    p.strong.length ? "Strong at: " + lc(AREAS, p.strong) : "",
+    p.weak.length ? "Wants to improve: " + lc(AREAS, p.weak) : "",
+    `${p.days} days a week · ${p.minutes} min · ${optLabel(EQUIP, p.equip).toLowerCase()}`,
+    p.limits.length ? "Take care with: " + lc(LIMITS, p.limits) : ""
+  ].filter(Boolean);
+}
+function setPlan(np) {
+  const ph = curPhase();
+  if (S.plan && S.plan.days.length && ph) ph.prevPlans = [clone(S.plan), ...(ph.prevPlans || [])].slice(0, 3);
+  S.plan = np; savePlan(0);
+}
+// chosen goals become active with fresh milestone ladders (reached milestones stay); the others are parked
+function syncGoals(p) {
+  const j = S.journey; memo.clear();
+  for (const g of j.goals) if (g.key && !p.goals.includes(g.key) && !goalState(g).done) g.status = "parked";
+  for (const k of p.goals) {
+    const g = j.goals.find(x => x.key === k) || j.goals.find(x => !x.key && norm(x.name) === norm(goalName(k)));
+    const ms = goalMilestones(k, p).map(m => ({ id: uid(), ...m }));
+    if (!g) { j.goals.push({ id: uid(), key: k, name: goalName(k), status: "active", createdAt: todayStr(), milestones: ms }); continue; }
+    g.key = k; g.name = goalName(k); g.status = "active";
+    if (!goalState(g).done) { const kept = g.milestones.filter(m => msState(m).done); g.milestones = [...kept, ...ms.filter(m => !kept.some(x => norm(x.name) === norm(m.name)))]; }
+  }
+  memo.clear();
+}
+function applyProfile(p, usePlan) {
+  const j = S.journey;
+  j.profile = { ...clone(p), updatedAt: todayStr() };
+  syncGoals(p);
+  j.benchmarks = buildBench(p).map(b => j.benchmarks.find(x => same(x.name, b.name)) || b);
+  if (usePlan) setPlan(buildPlan(p));
+  const ph = curPhase(); if (ph && !ph.focus) ph.focus = p.goals.map(goalName).join(", ");
+  saveJourney(0);
+}
+
+/* ---------- questionnaire ---------- */
+const OB_STEPS = ["About you", "Your background", "Where you are now", "Your goals", "Your week", "Your plan"];
+const OB_NUM = ["pull", "push", "hs", "days", "minutes"];
+const needsOnb = () => S.planLoaded && S.journeyLoaded && S.sessionsLoaded && !!S.journey && !J().profile && !S.onbLater && !activeSession();
+function newOnb() {
+  const p = J().profile;
+  return { step: 0, usePlan: true, p: p ? clone(p) : { heightCm: null, weightKg: null, age: null, sports: [], experience: "", pull: null, push: null, hs: null, strong: [], weak: [], goals: [], days: Math.min(6, Math.max(2, (S.plan && S.plan.weeklyTarget) || 3)), minutes: 60, equip: "gym", limits: [] } };
+}
+function obMissing(o) {
+  const p = o.p;
+  if (o.step === 0) return !(p.heightCm >= 100 && p.heightCm <= 250) ? "Enter your height." : !(p.weightKg >= 30 && p.weightKg <= 300) ? "Enter your weight." : p.age != null && !(p.age >= 10 && p.age <= 100) ? "Check your age, or leave it empty." : "";
+  if (o.step === 1) return !p.sports.length ? "Pick at least one, or Nothing regular." : !p.experience ? "Say how long you've trained." : "";
+  if (o.step === 2) return p.pull == null ? "Pick how many pull-ups you can do." : p.push == null ? "Pick how many push-ups you can do." : p.hs == null ? "Pick your handstand level." : "";
+  if (o.step === 3) return p.goals.length ? "" : "Pick at least one goal.";
+  return "";
+}
+function viewOnb() {
+  const o = S.onb, p = o.p, st = o.step, n = OB_STEPS.length, back = !!J().profile || !!(S.plan && S.plan.days.length) || finished().length > 0;
+  const chips = (k, list, multi, none) => `<div class="daypick">${list.map(([v, l]) => { const on = multi ? p[k].includes(v) : String(p[k]) === String(v); return `<button class="chip${on ? " on" : ""}" data-a="${multi ? "obtog" : "obset"}" data-k="${k}" data-v="${v}" aria-pressed="${on}">${esc(l)}</button>`; }).join("")}${none ? `<button class="chip${p[k].length ? "" : " on"}" data-a="obtog" data-k="${k}" data-v="" aria-pressed="${!p[k].length}">${none}</button>` : ""}</div>`;
+  const opts = (k, list, multi) => `<div class="opts">${list.map(([v, l, d]) => { const on = multi ? p[k].includes(v) : p[k] === v; return `<button class="opt${on ? " on" : ""}" data-a="${multi ? "obtog" : "obset"}" data-k="${k}" data-v="${v}" aria-pressed="${on}"><b>${esc(l)}</b>${d ? `<span>${esc(d)}</span>` : ""}</button>`; }).join("")}</div>`;
+  const num = (k, lab, u, val, ph) => `<label><span class="label">${lab}</span><span class="field"><input id="ob-${k}" inputmode="decimal" autocomplete="off" data-a="obnum" data-k="${k}" value="${val == null || val === "" ? "" : val}" placeholder="${ph}"><span>${u}</span></span></label>`;
+  const lv = list => list.map((l, i) => [i, l]);
+  let h = `<div class="stack" style="gap:6px"><span class="label">Step ${st + 1} of ${n}</span><div class="meter"><i style="width:${Math.round((st + 1) / n * 100)}%"></i></div></div><section class="card stack"><h2>${OB_STEPS[st]}</h2>`;
+  if (st === 0) {
+    const [ft, inch] = p.heightCm ? feetIn(p.heightCm) : ["", ""], imp = imperial();
+    h += `<p class="muted small" style="margin:0">${J().profile ? "Change any answer and Lift Log updates your goals, benchmarks and plan." : "Six short steps. Your answers set your plan, the milestones for your goals and the benchmarks you test every 6 weeks."}</p>
+      <div class="obgrid">${imp ? num("ft", "Height", "ft", ft, "5") + num("in", "&nbsp;", "in", inch, "10") + num("lb", "Weight", "lb", p.weightKg ? Math.round(p.weightKg * 2.20462) : "", "170")
+        : num("cm", "Height", "cm", p.heightCm ? Math.round(p.heightCm) : "", "178") + num("kg", "Weight", "kg", p.weightKg ? Math.round(p.weightKg * 10) / 10 : "", "75")}${num("age", "Age (optional)", "yrs", p.age, "30")}</div>`;
+  } else if (st === 1) {
+    h += `<span class="label">Sports you've done regularly</span>${chips("sports", SPORTS, true)}<span class="label">How long have you trained with weights or bodyweight?</span>${chips("experience", EXPERIENCE)}`;
+  } else if (st === 2) {
+    h += `<span class="label">Strict pull-ups in one go</span>${chips("pull", lv(PULL_LV))}<span class="label">Push-ups in one go</span>${chips("push", lv(PUSH_LV))}<span class="label">Handstand</span>${chips("hs", lv(HS_LV))}
+      <span class="label">Your strengths</span>${chips("strong", AREAS, true)}<span class="label">What you want to improve</span>${chips("weak", AREAS, true)}`;
+  } else if (st === 3) {
+    h += `<p class="muted small" style="margin:0">Pick one or two. You can add another later under Progress → Goals.</p>${opts("goals", GOALS.filter(([k]) => k !== "pullup" || p.pull < 2), true)}`;
+  } else if (st === 4) {
+    h += `<span class="label">Training days per week</span>${chips("days", [2, 3, 4, 5, 6].map(d => [d, String(d)]))}<span class="label">Time per workout</span>${chips("minutes", [30, 45, 60, 75, 90].map(m => [m, m + " min"]))}
+      <span class="label">Where you train</span>${opts("equip", EQUIP)}<span class="label">Anything that hurts or holds you back?</span>${chips("limits", LIMITS, true, "Nothing")}`;
+  } else {
+    const r = buildPlan(p), bs = buildBench(p);
+    h += `<ul class="rules">${r.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul></section>
+      <section class="card stack"><h2>Your week</h2>${r.days.map(d => `<div class="dday"><b>${esc(d.name)}</b><ul class="exlist">${d.exercises.map(e => `<li><span${e.kind ? ' class="muted"' : ""}>${esc(e.name)}</span><span class="tgt">${e.kind ? "" : esc(exTarget(e) + (e.unit ? " " + e.unit : ""))}</span></li>`).join("")}</ul></div>`).join("")}</section>
+      <section class="card stack"><h2>Goals</h2>${p.goals.map(k => `<div class="dday"><b>${esc(goalName(k))}</b><ul class="rules">${goalMilestones(k, p).map(m => `<li>${esc(m.name)}</li>`).join("")}</ul></div>`).join("")}</section>
+      <section class="card stack"><h2>Benchmarks</h2><p class="muted small" style="margin:0">Tested every 6 weeks, always the same, so you can see your progress.</p><ul class="exlist">${bs.map(b => `<li><span>${esc(b.name)}</span><span class="tgt">${benchUnit({ unit: b.unit })}</span></li>`).join("")}</ul>
+      ${S.plan && S.plan.days.length ? `<label class="check"><input type="checkbox" data-a="obuseplan"${o.usePlan ? " checked" : ""}>Replace my current plan. You can restore the old one under Plan → Phases.</label>` : ""}`;
+  }
+  h += `</section><div class="obfoot">${st ? `<button class="btn big" data-a="obback" style="flex:0 0 auto;width:auto">Back</button>` : ""}<button class="btn primary big" data-a="obnext">${st === n - 1 ? "Start training" : "Next"}</button></div>`;
+  if (back) h += `<div class="row" style="justify-content:center"><button class="linkbtn" data-a="oblater">${J().profile ? "Cancel" : "Not now"}</button></div>`;
+  return h;
+}
+function finishOnb() {
+  const o = S.onb, first = !J().profile, hadPlan = !!(S.plan && S.plan.days.length);
+  applyProfile(o.p, o.usePlan || !hadPlan);
+  S.onb = null; S.view = "train"; ls.set("liftlog.view", "train"); window.scrollTo(0, 0);
+  toast(first ? "Your plan is ready." : o.usePlan || !hadPlan ? "Profile saved and plan rebuilt." : "Profile saved.");
+}
+
 /* ---------- views ---------- */
-function topbar(title) { return `<header class="topbar"><div class="wrap"><h1>${ICON.mark}${esc(title)}</h1>${syncHTML()}</div></header>`; }
+function topbar(title, gear) { return `<header class="topbar"><div class="wrap"><h1>${ICON.mark}${esc(title)}</h1><div class="tbr">${syncHTML()}${gear ? `<button class="iconbtn" data-a="settings" aria-label="Settings">${ICON.gear}</button>` : ""}</div></div></header>`; }
 function navHTML() {
   const t = [["train", "Train", ICON.train], ["history", "History", ICON.hist], ["progress", "Progress", ICON.prog], ["plan", "Plan", ICON.plan]];
   return `<nav class="tabs"><div class="wrap">${t.map(([k, l, i]) => `<button data-a="view" data-v="${k}" class="${S.view === k ? "on" : ""}" aria-current="${S.view === k ? "page" : "false"}">${i}${l}</button>`).join("")}</div></nav>`;
@@ -846,26 +1166,24 @@ function viewTrain() {
   let h = "";
   if (S.justFinished && S.sessions.get(S.justFinished)) h += finishedCard(S.sessions.get(S.justFinished));
   if (!S.plan || !S.plan.days.length) {
-    return h + `<div class="card empty stack"><h2>Set up your plan</h2><p class="muted">Your plan is the list of workout days and the exercises in each. Start from a push / pull / legs template and change it to match what you do, or build it from scratch.</p>
-      <button class="btn primary big" data-a="starter">Use the starter plan</button><button class="btn" data-a="blankplan">Build my own</button></div>`;
+    return h + `<div class="card empty stack"><h2>Set up your plan</h2><p class="muted">Answer a few questions about you, your sport history and your goals, and Lift Log builds your plan, goals and benchmarks.</p>
+      ${J().profile ? `<button class="btn primary big" data-a="rebuild">Build my plan</button>` : `<button class="btn primary big" data-a="obstart">Start the questionnaire</button>`}<button class="btn" data-a="blankplan">Build my own</button></div>`;
   }
-  const ws = weekStats(), nd = nextDay(), last = finished()[0], wt = Number(S.plan.weeklyTarget) || 0;
-  h += `<div class="stats">
-    <div class="stat"><span class="label">This week</span><b>${ws.thisWeek}${wt ? `<span class="muted" style="font-size:22px"> / ${wt}</span>` : ""}</b><span class="sub">${wt ? (ws.thisWeek >= wt ? "target reached" : "workouts") : ws.thisWeek === 1 ? "workout" : "workouts"}</span></div>
-    <div class="stat"><span class="label">Week streak</span><b>${ws.cur}</b><span class="sub">best ${ws.best}</span></div>
-    <div class="stat"><span class="label">This month</span><b>${ws.thisMonth}</b><span class="sub">workouts</span></div>
-    <div class="stat"><span class="label">Last workout</span><b style="font-size:24px;margin-top:10px">${last ? shortDate(last.date) : "–"}</b><span class="sub">${last ? esc(last.dayName || "Workout") : "none yet"}</span></div>
-  </div>`;
-  h += journeyCard();
+  const ws = weekStats(), js = journeyStats(), nd = nextDay(), wt = Number(S.plan.weeklyTarget) || 0;
+  h += `<section class="card strip"><div><span class="label">This week</span><b>${ws.thisWeek}${wt ? `<span class="muted"> / ${wt}</span>` : ""}</b></div>
+    <div><span class="label">Streak</span><b>${ws.cur} <span class="muted">wk</span></b></div>
+    <button data-a="gototrophies" aria-label="Level ${js.level}, ${fmtInt(js.toNext)} XP to the next level"><span class="label">Level</span><b>${js.level}</b><span class="meter"><i style="width:${js.pct}%"></i></span></button></section>`;
+  if (!J().profile) h += `<section class="card stack" style="border-color:var(--accent)"><h2>Tell Lift Log about you</h2><p class="muted small" style="margin:0">A few questions about your body, sport history, goals and week. Your goals, benchmarks and plan are then set from your answers.</p><button class="btn primary" data-a="obstart">Start the questionnaire</button></section>`;
   const td = testDay();
   if (td && testDue() && S.pickDay !== td.id) h += `<section class="card stack" style="border-color:var(--accent)"><h2>Test due</h2><p class="muted small" style="margin:0">${finished().some(isTestSession) ? "It's been 6 weeks since your last test." : "Set your baseline."} Do ${esc(td.name || "the test day")} in place of one regular workout this week. +${XP.test} XP.</p><button class="btn" data-a="pickday" data-id="${td.id}">Show ${esc(td.name || "test day")}</button></section>`;
   const pick = S.pickDay && findDay(S.pickDay) || nd;
-  h += `<section class="card next stack"><span class="label">${pick === nd ? "Next up" : "Selected"}</span><h2>${esc(pick.name || "Untitled day")}</h2>${pick.note ? `<p class="muted small" style="margin:-4px 0 0">${esc(pick.note)}</p>` : ""}
-    <ul class="exlist">${pick.exercises.map(resolveEx).filter(e => e.name.trim()).map(e => { const l = e.kind ? null : lastFor(e.name); return `<li><span${e.kind === "info" ? ' class="muted"' : ""}>${esc(e.name)}${l ? `<br><span class="muted small num">Last: ${l.bestSet.w ? fmt(l.bestSet.w) + " × " : ""}${l.bestSet.r}</span>` : ""}</span><span class="tgt">${esc(exTarget(e))}</span></li>`; }).join("") || '<li class="muted">No exercises yet. Add them in Plan.</li>'}</ul>
-    <button class="btn primary big" data-a="start" data-id="${pick.id}">Start ${esc(pick.name || "workout")}</button></section>`;
   const days = S.plan.days.map(d => d.test ? td || d : d);
   if (td && !planTestDay()) days.push(td);
-  if (days.length > 1) h += `<div class="stack"><span class="label">Or pick another day</span><div class="daypick">${days.map(d => `<button class="chip${d.id === pick.id ? " on" : ""}" data-a="pickday" data-id="${d.id}">${esc(d.name || "Untitled")}</button>`).join("")}<button class="chip" data-a="start" data-id="">Empty workout</button></div></div>`;
+  h += `<section class="card next stack">${days.length > 1 ? `<div class="daypick">${days.map(d => `<button class="chip${d.id === pick.id ? " on" : ""}" data-a="pickday" data-id="${d.id}" aria-pressed="${d.id === pick.id}">${esc(d.name || "Untitled")}</button>`).join("")}</div>` : ""}
+    <span class="label">${pick === nd ? "Next up" : "Selected"}</span><h2 style="margin-top:-6px">${esc(pick.name || "Untitled day")}</h2>${pick.note ? `<p class="muted small" style="margin:-4px 0 0">${esc(pick.note)}</p>` : ""}
+    <ul class="exlist">${pick.exercises.map(resolveEx).filter(e => e.name.trim()).map(e => { const l = e.kind ? null : lastFor(e.name); return `<li><span${e.kind === "info" ? ' class="muted"' : ""}>${esc(e.name)}${l ? `<br><span class="muted small num">Last: ${l.bestSet.w ? fmt(l.bestSet.w) + " × " : ""}${l.bestSet.r}</span>` : ""}</span><span class="tgt">${esc(exTarget(e))}</span></li>`; }).join("") || '<li class="muted">No exercises yet. Add them in Plan.</li>'}</ul>
+    <button class="btn primary big" data-a="start" data-id="${pick.id}">Start ${esc(pick.name || "workout")}</button>
+    <button class="linkbtn" style="align-self:center" data-a="start" data-id="">Or start an empty workout</button></section>`;
   return h;
 }
 function finishedCard(s) {
@@ -882,22 +1200,6 @@ function finishedCard(s) {
     ${ms.map(e => { const g = goalState(e.g); return `<div class="unlock pop"><span class="msdot">${ICON.check}</span><span><b>Milestone reached:</b> ${esc(e.m.name)}<br><span class="muted small">${esc(e.g.name || "Goal")} · ${g.n} / ${g.total}</span></span></div>`; }).join("")}
     ${gl.map(e => `<div class="unlock pop"><span><b>Goal reached: ${esc(e.g.name || "Untitled goal")}</b><br><span class="muted small">Every milestone done. +${XP.goal} XP</span></span></div>`).join("")}
     ${tro.length ? `<span class="label">New trophies</span><div class="badges">${tro.map(t => badgeHTML(t, true)).join("")}</div>` : ""}</section>`;
-}
-
-// Train: level, current phase and the next milestone of each active goal
-function journeyCard() {
-  const js = journeyStats(), p = curPhase(), all = J().goals || [];
-  const gs = all.filter(g => g.status !== "parked").map(g => ({ g, st: goalState(g) })).filter(x => !x.st.done && x.st.total);
-  let h = `<section class="card stack"><div class="lvl"><div><span class="label">Level ${js.level}</span><b class="num">${fmtInt(js.xp)} <span class="muted" style="font-size:18px">XP</span></b></div>
-    ${p ? `<button class="linkbtn" data-a="gotophase" style="text-align:right;line-height:1.25">${esc(p.name || "Current phase")}<br><span class="muted small" style="font-weight:500">week ${phaseWeek(p)}</span></button>` : ""}</div>
-    <div class="meter"><i style="width:${js.pct}%"></i></div><span class="muted small">${fmtInt(js.toNext)} XP to level ${js.level + 1}</span>`;
-  if (gs.length) h += gs.slice(0, 3).map(({ g, st }) => {
-    const m = st.next.m, b = m.ex && m.target > 0 ? bestOf(m.ex, m.metric) : null;
-    return `<div class="goalmini"><div class="row between" style="flex-wrap:nowrap"><strong>${esc(g.name || "Untitled goal")}</strong><span class="muted small num">${st.n} / ${st.total}</span></div><div class="meter"><i style="width:${Math.round(st.n / st.total * 100)}%"></i></div>
-      <span class="muted small">Next: ${esc(m.name)}${b != null ? ` · best ${fmt(b)} / ${fmt(m.target)} ${esc(metU(m.metric))}` : ""}</span></div>`;
-  }).join("");
-  else if (!all.length) h += `<p class="muted small" style="margin:0">Set a goal, like a handstand walk or a muscle-up. Every milestone you reach earns +${XP.milestone} XP.</p><button class="btn sm" style="align-self:flex-start" data-a="gotogoals">Add a goal</button>`;
-  return h + `</section>`;
 }
 
 function editorHTML(s, live) {
@@ -1004,27 +1306,42 @@ function testsHTML() {
       <span class="muted small num">${hist.length} test${hist.length > 1 ? "s" : ""} · last ${shortDate(lp.date)}${d != null ? ` · <span class="${d > 0 ? "up" : d < 0 ? "down" : ""}">${d >= 0 ? "+" : ""}${fmt(d)}</span> since first` : ""}</span>
       ${hist.length > 1 ? lineChart(hist.map(p => ({ x: parseDay(p.date).getTime(), y: val(p) })), u, phaseBands()) : ""}</div>`;
   }).join("");
-  return `<section class="card stack"><div class="row between"><h2>Benchmarks</h2><span class="muted small">${due}</span></div><div class="tests">${cards}</div></section>`;
+  return `<section class="card stack"><div class="row between"><h2>Benchmarks</h2><span class="muted small">${due}</span></div>
+    <p class="muted small" style="margin:0">Set from your goals. You repeat the same tests on ${esc(td.name || "the test day")} every 6 weeks, so phases stay comparable.</p><div class="tests">${cards}</div>
+    <button class="btn" style="align-self:flex-start" data-a="pickday" data-id="${td.id}" data-go="train">Show ${esc(td.name || "test day")}</button></section>`;
 }
 
 const segHTML = (a, cur, opts) => `<div class="seg" role="tablist">${opts.map(([k, l]) => `<button role="tab" aria-selected="${cur === k}" class="${cur === k ? "on" : ""}" data-a="${a}" data-v="${k}">${l}</button>`).join("")}</div>`;
 function viewProgress() {
   if (!S.sessionsLoaded) return `<div class="card empty"><h2>Loading</h2></div>`;
   const tab = S.progTab;
-  return segHTML("progtab", tab, [["lifts", "Lifts"], ["goals", "Goals"], ["trophies", "Trophies"]]) + (tab === "goals" ? progGoals() : tab === "trophies" ? progTrophies() : progLifts());
+  return `<div class="seg four" role="tablist">${[["lifts", "Lifts"], ["bench", "Benchmarks"], ["goals", "Goals"], ["trophies", "Trophies"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "on" : ""}" data-a="progtab" data-v="${k}">${l}</button>`).join("")}</div>`
+    + ({ bench: progBench, goals: progGoals, trophies: progTrophies }[tab] || progLifts)();
 }
 
+function progBench() {
+  return testsHTML() || `<div class="card empty stack"><h2>No benchmarks yet</h2><p class="muted">Benchmarks are a few tests you repeat every 6 weeks, always the same, so you can see your progress. They're set from your goals.</p><button class="btn primary" data-a="progtab" data-v="goals">Pick goals</button></div>`;
+}
+
+// goals: milestones first, then the picker; milestones come from the profile
 function progGoals() {
+  const p = J().profile, all = J().goals || [];
   const rank = x => x.g.status === "parked" ? 2 : x.st.done ? 1 : 0;
-  const gs = (J().goals || []).map(g => ({ g, st: goalState(g) })).sort((a, b) => rank(a) - rank(b));
-  let h = gs.length ? "" : `<div class="card empty stack"><h2>No goals yet</h2><p class="muted">Pick a skill, like a handstand walk or a muscle-up, and split it into milestones. Each one you reach shows up here with its date.</p><button class="btn primary" data-a="gotogoals">Add a goal</button></div>`;
+  const gs = all.map(g => ({ g, st: goalState(g) })).sort((a, b) => rank(a) - rank(b));
+  let h = gs.length ? "" : `<div class="card empty stack"><h2>No goals yet</h2><p class="muted">Pick a goal, like a handstand walk or a muscle-up. Lift Log sets its milestones from your profile, and each one you reach shows up here with its date.</p></div>`;
   for (const { g, st } of gs) {
     const tag = st.done ? `<span class="tag good">Reached ${shortDate(st.date)}</span>` : g.status === "parked" ? `<span class="tag">Parked</span>` : `<span class="tag acc">${st.n} / ${st.total}</span>`;
+    // goals picked in the questionnaire follow the picker; others (from Claude or older versions) are parked or removed here
+    const own = g.key ? "" : `<div class="row" style="gap:6px">${st.done ? "" : `<button class="btn sm" data-a="gpark" data-g="${all.indexOf(g)}">${g.status === "parked" ? "Resume" : "Park"}</button>`}${armBtn("rmgoal:" + g.id, "Remove", "Tap to remove")}</div>`;
     h += `<section class="card stack"><div class="row between" style="flex-wrap:nowrap;align-items:flex-start"><h2>${esc(g.name || "Untitled goal")}</h2>${tag}</div>
       ${st.total ? `<div class="meter${st.done ? " good" : ""}"><i style="width:${Math.round(st.n / st.total * 100)}%"></i></div>` : ""}
-      <ul class="mslist">${st.ms.map(x => msItem(g, x, st)).join("") || '<li class="muted small">No milestones yet. Add them under Plan → Goals.</li>'}</ul></section>`;
+      <ul class="mslist">${st.ms.map(x => msItem(g, x, st)).join("") || '<li class="muted small">No milestones yet.</li>'}</ul>${own}</section>`;
   }
-  return h + phasesTable();
+  if (!p) return h + `<section class="card stack"><p class="muted small" style="margin:0">To pick goals, answer a few questions about you first. Lift Log sets their milestones and benchmarks from your answers.</p><button class="btn primary" data-a="obstart">Start the questionnaire</button></section>`;
+  const act = p.goals, built = S.plan && S.plan.goalKeys, stale = built && built.join() !== act.join();
+  return h + `<section class="card stack"><details class="more"${gs.length && !S.goalsOpen ? "" : " open"}><summary>Change goals</summary><div class="stack"><p class="muted small" style="margin:0">Pick up to three. Their milestones are set from your profile and tick themselves when you log them.</p>
+    <div class="opts">${GOALS.filter(([k]) => k !== "pullup" || p.pull < 2 || act.includes(k)).map(([k, n, d]) => { const on = act.includes(k), g = all.find(x => x.key === k); return `<button class="opt${on ? " on" : ""}" data-a="goaltog" data-k="${k}" aria-pressed="${on}"><b>${esc(n)}${g && goalState(g).done ? " · reached" : ""}</b><span>${esc(d)}</span></button>`; }).join("")}</div></div></details>
+    ${stale ? `<div class="banner">Your plan was built for ${esc(built.map(goalName).join(", "))}. <button class="linkbtn" style="min-height:0;padding:0" data-a="rebuild">Rebuild it for these goals</button></div>` : !built ? `<button class="btn" data-a="rebuild">Build my plan from these goals</button>` : ""}</section>`;
 }
 function msItem(g, x, st) {
   const m = x.m, gi = J().goals.indexOf(g), mi = g.milestones.indexOf(m), ph = x.done && phases().length > 1 ? evPhase(x.date, x.sid) : null;
@@ -1051,7 +1368,7 @@ function phasesTable() {
   if (items.length) body += `<tr class="grp"><td colspan="${cols.length + 1}">Best benchmark result</td></tr>` + items.map(e => row(e.name + " (" + (e.unit || units()) + ")", cols.map(c => bval(c, e)), 1, true)).join("");
   return `<section class="card stack"><div class="row between"><h2>Phases side by side</h2><span class="muted small">${ps.length} ${ps.length === 1 ? "phase" : "phases"}</span></div>
     <div class="scrollx"><table class="tbl cmp"><thead><tr><th></th>${cols.map(c => `<th>${esc(c.p.name || "Phase")}<br><span style="text-transform:none;letter-spacing:0;font-weight:500">${shortDate(c.p.start)} – ${c.p.end ? shortDate(c.p.end) : "now"}</span></th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
-    <p class="muted small" style="margin:0">${ps.length === 1 ? "Start a new phase under Plan → Phases and it gets its own column here, measured on the same benchmarks." : "Change is against the phase before."}${items.length ? "" : " Add benchmarks under Plan → Goals to compare phases on the same tests."}</p></section>`;
+    <p class="muted small" style="margin:0">${ps.length === 1 ? "Start a new phase and it gets its own column here, measured on the same benchmarks." : "Change is against the phase before."}${items.length ? "" : " Pick goals under Progress → Goals and their benchmarks compare phases on the same tests."}</p></section>`;
 }
 
 function progTrophies() {
@@ -1068,8 +1385,7 @@ function progLifts() {
   const counts = new Map();
   for (const s of finished()) for (const ex of s.exercises || []) if (doneSets(ex).length) { const nm = canon(ex.name), k = norm(nm); const c = counts.get(k) || { name: nm, n: 0 }; c.n++; counts.set(k, c); }
   const exs = [...counts.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
-  const tests = testsHTML();
-  if (!exs.length) return tests + `<div class="card empty stack"><h2>No progress yet</h2><p class="muted">After your first finished workout you'll see each exercise's estimated one-rep max, heaviest set and volume over time here.</p></div>`;
+  if (!exs.length) return `<div class="card empty stack"><h2>No progress yet</h2><p class="muted">After your first finished workout you'll see each exercise's estimated one-rep max, heaviest set and volume over time here.</p></div>`;
   let cur = exs.find(e => norm(e.name) === norm(canon(S.progEx))) || exs[0];
   const hist = exerciseHistory(cur.name);
   const bw = hist.every(p => !p.top);
@@ -1078,7 +1394,7 @@ function progLifts() {
   const val = p => metric === "e1rm" ? p.e1rm : metric === "top" ? p.top : metric === "vol" ? p.vol : p.maxR;
   const unitL = metric === "vol" ? u + " × reps" : metric === "reps" ? "reps" : u;
   const pts = hist.map(p => ({ x: parseDay(p.date).getTime(), y: val(p) }));
-  let h = tests + `<section class="card stack"><label class="label" for="progex">Exercise</label><select class="sel" id="progex" data-a="progex">${exs.map(e => `<option value="${esc(e.name)}"${e === cur ? " selected" : ""}>${esc(e.name)} (${e.n})</option>`).join("")}</select>
+  let h = `<section class="card stack"><label class="label" for="progex">Exercise</label><select class="sel" id="progex" data-a="progex">${exs.map(e => `<option value="${esc(e.name)}"${e === cur ? " selected" : ""}>${esc(e.name)} (${e.n})</option>`).join("")}</select>
     ${bw ? `<p class="muted small" style="margin:0">Logged without weight, so this shows your most reps in a set.</p>` : `<div class="seg" role="tablist">${[["e1rm", "Est. 1RM"], ["top", "Heaviest"], ["vol", "Volume"]].map(([k, l]) => `<button role="tab" aria-selected="${metric === k}" class="${metric === k ? "on" : ""}" data-a="metric" data-m="${k}">${l}</button>`).join("")}</div>`}
     ${aliasHTML(cur.name)}</section>`;
   const best = hist.reduce((a, p) => val(p) > val(a) ? p : a, hist[0]);
@@ -1109,30 +1425,10 @@ function aliasHTML(name) {
 }
 
 /* ---------- plan: goals, benchmarks, phases ---------- */
-function goalsEditor() {
-  const gs = J().goals || [];
-  let h = `<section class="card stack"><h2>Goals</h2><p class="muted small" style="margin:0">Split a skill into milestones. Give a milestone an exercise and a target and it ticks itself when you log it; otherwise tick it yourself. Goals carry over when you start a new phase.</p>
-    <span class="label">Add a goal</span><div class="daypick">${GOAL_PRESETS.map((p, i) => `<button class="chip" data-a="goaladd" data-p="${i}">${esc(p.name)}</button>`).join("")}<button class="chip" data-a="goaladd" data-p="">Blank goal</button></div></section>`;
-  gs.forEach((g, gi) => {
-    const st = goalState(g), parked = g.status === "parked";
-    h += `<section class="card stack"><div class="row between"><span class="label">${st.done ? "Reached " + shortDate(st.date) : parked ? "Parked" : "Active"} · ${st.n} / ${st.total}</span><div class="row" style="gap:4px">${st.done ? "" : `<button class="btn sm" data-a="gpark" data-g="${gi}">${parked ? "Resume" : "Park"}</button>`}${armBtn("rmgoal:" + g.id, "Delete", "Tap to delete")}</div></div>
-      <input class="textin dayname" data-a="gname" data-g="${gi}" value="${esc(g.name)}" placeholder="Goal, e.g. Handstand walk" aria-label="Goal name">
-      ${(g.milestones || []).map((m, mi) => { const x = msState(m); return `<div class="msed"><button class="msdot${x.done ? " on" : ""}" data-a="mstick" data-g="${gi}" data-m="${mi}" aria-pressed="${x.done}" aria-label="${x.done ? "Untick" : "Tick"} milestone"${x.auto ? ' disabled title="Reached in a logged workout"' : ""}>${x.done ? ICON.check : ""}</button>
-        <input class="fin" data-a="msname" data-g="${gi}" data-m="${mi}" value="${esc(m.name)}" placeholder="Milestone, e.g. 30 s freestanding hold" aria-label="Milestone"><button class="iconbtn" style="border:0;background:none" data-a="msrm" data-g="${gi}" data-m="${mi}" aria-label="Remove milestone">${ICON.x}</button></div>
-        <div class="msed2"><input class="fin" list="exnames-goal" data-a="msex" data-g="${gi}" data-m="${mi}" value="${esc(m.ex || "")}" placeholder="Exercise (optional)" aria-label="Exercise that counts"><input class="fin c" inputmode="decimal" data-a="mstarget" data-g="${gi}" data-m="${mi}" value="${m.target || ""}" placeholder="Target" aria-label="Target">
-        <select class="fin" data-a="msmetric" data-g="${gi}" data-m="${mi}" aria-label="Measured in">${[["r", "reps"], ["s", "seconds"], ["m", "metres"], ["w", units()]].map(([k, l]) => `<option value="${k}"${(m.metric || "r") === k ? " selected" : ""}>${l}</option>`).join("")}</select></div>
-        ${x.done ? `<div class="slotnote" style="margin:-2px 0 4px 38px">${x.auto ? "Reached in a workout" : "Ticked"} ${shortDate(x.date)}</div>` : ""}`; }).join("")}
-      <button class="linkbtn" style="align-self:flex-start" data-a="msadd" data-g="${gi}">+ Add milestone</button></section>`;
-  });
-  return h + `<datalist id="exnames-goal">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>`;
-}
-function benchEditor() {
-  const bs = J().benchmarks || [], pd = planTestDay();
-  const sug = BENCH_SUGGEST.filter(([n]) => !bs.some(b => same(b.name, n)));
-  return `<section class="card stack"><h2>Benchmarks</h2><p class="muted small" style="margin:0">The same tests in every phase, so phases stay comparable. They're added to ${pd ? esc(pd.name || "your test day") : "a Benchmarks day on Train"}, which comes up every 6 weeks.</p>
-    ${bs.map((b, bi) => `<div class="bench"><input class="fin" data-a="bname" data-b="${bi}" value="${esc(b.name)}" placeholder="e.g. Max strict pull-ups" aria-label="Benchmark" list="exnames-goal"><select class="fin" data-a="bunit" data-b="${bi}" aria-label="Measured in">${[["", "heaviest " + units()], ["reps", "max reps"], ["s", "seconds"], ["m", "metres"]].map(([k, l]) => `<option value="${k}"${(b.unit || "") === k ? " selected" : ""}>${l}</option>`).join("")}</select><button class="iconbtn" style="border:0;background:none" data-a="brm" data-b="${bi}" aria-label="Remove benchmark">${ICON.x}</button></div>`).join("")}
-    ${sug.length ? `<span class="label">Suggestions</span><div class="daypick">${sug.map(([n, u]) => `<button class="chip" data-a="badd" data-n="${esc(n)}" data-u="${u}">+ ${esc(n)}</button>`).join("")}</div>` : ""}
-    <button class="linkbtn" style="align-self:flex-start" data-a="badd" data-n="" data-u="reps">+ Add benchmark</button></section>`;
+function profileCard() {
+  const p = J().profile;
+  if (!p) return `<section class="card stack"><h2>Your profile</h2><p class="muted small" style="margin:0">Answer a few questions and Lift Log sets your goals, benchmarks and plan from them.</p><button class="btn primary" data-a="obstart">Start the questionnaire</button></section>`;
+  return `<section class="card stack"><div class="row between"><h2>Your profile</h2><button class="btn sm" data-a="obstart">Retake</button></div><ul class="rules">${profileLines(p).map(l => `<li>${esc(l)}</li>`).join("")}</ul></section>`;
 }
 function phasesEditor() {
   const p = curPhase(); if (!p) return "";
@@ -1140,7 +1436,7 @@ function phasesEditor() {
   let h = `<section class="card stack"><span class="label">Current phase · since ${shortDate(p.start)} · week ${phaseWeek(p)} · ${n} ${n === 1 ? "workout" : "workouts"}</span>
     <input class="textin dayname" data-a="phname" value="${esc(p.name)}" placeholder="Phase name" aria-label="Phase name">
     <input class="textin" data-a="phfocus" value="${esc(p.focus || "")}" placeholder="Focus, e.g. handstand walk and muscle-up" aria-label="Phase focus">`;
-  if (!S.phaseForm) h += `<p class="muted small" style="margin:0">Changing your plan for a new goal? Start a new phase. This plan is kept with this phase, your history stays, and Progress compares the phases side by side. Finishing a phase earns +${XP.phase} XP.</p>
+  if (!S.phaseForm) h += `<p class="muted small" style="margin:0">Changing your plan for a new goal? Start a new phase. This plan is kept with this phase, your history stays, and the table below compares the phases side by side. Finishing a phase earns +${XP.phase} XP.</p>
     <div class="row"><button class="btn primary" data-a="phform">Start a new phase</button>${coachOn() && !(S.coach && S.coach.mode === "adjust") ? `<button class="btn" data-a="coachopen">Adjust plan with Claude</button>` : ""}</div>`;
   if (p.prevPlans && p.prevPlans.length && !S.phaseForm) h += `<button class="linkbtn" style="align-self:flex-start" data-a="planrestore">Restore the plan from before the last change</button>`;
   h += `</section>`;
@@ -1153,7 +1449,7 @@ function phasesEditor() {
 function phaseFormHTML(f) {
   const td = testDay(), last = finished().find(isTestSession), stale = td && (!last || (Date.now() - parseDay(last.date)) / 864e5 > 14);
   const goals = (J().goals || []).filter(g => !goalState(g).done);
-  const opts = [...(coachOn() ? [["ai", "Let Claude build it from your log"]] : []), ["keep", "Keep this plan and change it after"], ["blank", "Start from a blank plan"], ["starter", "Start from the push / pull / legs template"], ...phases().filter(q => q.plan && q.id !== curPhase().id).map(q => [q.id, "Reuse the plan from " + q.name])];
+  const opts = [...(coachOn() ? [["ai", "Let Claude build it from your log"]] : []), ["keep", "Keep this plan and change it after"], ["blank", "Start from a blank plan"], ...(J().profile ? [["profile", "Build it from your profile and goals"]] : []), ...phases().filter(q => q.plan && q.id !== curPhase().id).map(q => [q.id, "Reuse the plan from " + q.name])];
   return `<section class="card stack" style="border-color:var(--accent)"><h2>New phase</h2>
     ${stale ? `<div class="banner">Log ${esc(td.name || "your benchmarks")} first, so this phase ends with a fresh result to compare against. <button class="linkbtn" style="min-height:0;padding:0" data-a="pickday" data-id="${td.id}" data-go="train">Show it</button></div>` : ""}
     <label class="label" for="np-name">Name</label><input class="textin" id="np-name" data-a="npname" value="${esc(f.name)}" placeholder="e.g. Handstand block">
@@ -1163,7 +1459,7 @@ function phaseFormHTML(f) {
     ${goals.length ? `<span class="label">Keep working on</span>${goals.map(g => `<label class="check"><input type="checkbox" data-a="npgoal" value="${g.id}"${f.keep.includes(g.id) ? " checked" : ""}>${esc(g.name || "Untitled goal")}</label>`).join("")}<p class="muted small" style="margin:0">Unticked goals are parked. They keep their milestones and you can resume them any time.</p>` : ""}
     <div class="row"><button class="btn primary" data-a="phstart">Start phase</button><button class="btn ghost" data-a="phcancel">Cancel</button></div></section>`;
 }
-const BLANK = () => ({ units: "kg", days: [{ id: uid(), name: "Day A", exercises: [{ id: uid(), name: "", sets: 3, reps: "8-10" }] }] });
+const BLANK = () => ({ days: [{ id: uid(), name: "Day A", exercises: [{ id: uid(), name: "", sets: 3, reps: "8-10" }] }] });
 function startPhase() {
   const f = S.phaseForm, j = S.journey, cur = curPhase(), today = todayStr();
   if (cur) { cur.end = today; if (S.plan) cur.plan = clone(S.plan); }
@@ -1174,8 +1470,8 @@ function startPhase() {
   const src = j.phases.find(q => q.id === f.plan);
   if (ai) { S.plan = draftPlan(ai, S.coach.days); savePlan(0); mergeGoals(ai); }
   else {
-    const np = f.plan === "blank" ? BLANK() : f.plan === "starter" ? STARTER() : src && src.plan ? clone(src.plan) : null;
-    if (np) { const old = S.plan || {}; np.units = old.units || np.units || "kg"; if (old.weeklyTarget) np.weeklyTarget = old.weeklyTarget; S.plan = np; savePlan(0); }
+    const np = f.plan === "blank" ? BLANK() : f.plan === "profile" ? buildPlan(J().profile) : src && src.plan ? clone(src.plan) : null;
+    if (np) { const old = S.plan || {}; if (old.weeklyTarget && f.plan !== "profile") np.weeklyTarget = old.weeklyTarget; S.plan = np; savePlan(0); }
   }
   S.phaseForm = null; S.coach = null; saveJourney(0);
   toast(`${p.name} started. +${XP.phase} XP for finishing ${cur ? cur.name : "the last phase"}.`);
@@ -1197,6 +1493,7 @@ function coachContext() {
   const fmt = n => String(Math.round((n || 0) * 10) / 10);
   const setTxt = st => (st.w ? fmt(st.w) + u + "×" : "") + st.r;
   const L = [`Today: ${todayStr()}. Weight unit: ${u}.`, `Workouts logged: ${fin.length} in total, ${recent.length} in the last 8 weeks (${fmt(recent.length / 8)} per week)${S.plan && S.plan.weeklyTarget ? `; their target is ${S.plan.weeklyTarget} per week` : ""}.`];
+  if (J().profile) L.push("About the athlete, from their questionnaire:", ...profileLines(J().profile).map(l => "- " + l));
   const p = curPhase();
   if (p) L.push(`Current phase: ${p.name}${p.focus ? " (focus: " + p.focus + ")" : ""}, started ${p.start}, now in week ${phaseWeek(p)}.`);
   const past = phases().filter(q => p && q.id !== p.id);
@@ -1291,7 +1588,7 @@ function draftPlan(d, perWeek) {
   const old = S.plan || {}, td = planTestDay();
   const days = d.days.map(x => ({ id: uid(), name: x.name, ...(x.note ? { note: x.note } : {}), exercises: x.exercises.map(e => { const o = { id: uid(), name: e.name, sets: e.sets, reps: e.reps }; for (const k of ["unit", "rest", "note", "block"]) if (e[k]) o[k] = e[k]; return o; }) }));
   if (td) days.push(clone(td));
-  const p = { units: old.units || "kg", days, weeklyTarget: Math.min(14, Math.max(1, Math.round(Number(perWeek)) || old.weeklyTarget || 3)) };
+  const p = { days, weeklyTarget: Math.min(14, Math.max(1, Math.round(Number(perWeek)) || old.weeklyTarget || 3)) };
   if (d.rules.length) p.rules = d.rules;
   return p;
 }
@@ -1335,20 +1632,32 @@ function draftHTML(c) {
     ${c.mode === "adjust" ? `<div class="row"><button class="btn primary" data-a="coachapply">Use this plan</button><button class="btn ghost" data-a="coachdiscard">Discard</button></div>` : `<p class="muted small" style="margin:0">Tap Start phase below to use this plan.</p>`}</div>`;
 }
 
+// Settings (gear in the top bar): profile, training targets, and units under Advanced
+function settingsHTML() {
+  let h = profileCard();
+  if (S.plan) {
+    const usesLevel = S.plan.days.some(d => d.exercises.some(e => e.slot || /\{(pull|ttb)\}/.test(e.wod || "")));
+    h += `<section class="card stack"><h2>Training</h2><div class="row between"><label class="label" for="wtarget">Workouts per week</label><input class="textin" id="wtarget" data-a="wtarget" inputmode="numeric" value="${S.plan.weeklyTarget || ""}" placeholder="–" style="flex:0 0 72px;text-align:center"></div>
+      ${usesLevel ? `<label class="label" for="level">Your pull-up level</label><select class="sel" id="level" data-a="level">${Object.entries(LEVELS).map(([k, L]) => `<option value="${k}"${(S.plan.level || "3") === k ? " selected" : ""}>${esc(L.label)}</option>`).join("")}</select>
+      <p class="muted small" style="margin:0">${esc(level().note)} The pull-up and toes-to-bar exercises in your plan change with the level.</p>` : ""}</section>`;
+  }
+  const u = imperial() ? "imperial" : "metric";
+  h += `<section class="card"><details class="more"${S.advOpen ? " open" : ""}><summary>Advanced</summary><div class="stack"><span class="label">Units</span>
+    <div class="seg">${[["metric", "Metric · kg, cm"], ["imperial", "Imperial · lb, ft"]].map(([k, l]) => `<button class="${u === k ? "on" : ""}" data-a="units" data-u="${k}">${l}</button>`).join("")}</div>
+    <p class="muted small" style="margin:0">Changes the labels only. Weights you already logged stay as you typed them.</p></div></details></section>`;
+  return h;
+}
+
 function viewPlan() {
   if (!S.planLoaded) return `<div class="card empty"><h2>Loading</h2></div>`;
-  const seg = segHTML("plantab", S.planTab, [["plan", "Workouts"], ["goals", "Goals"], ["phases", "Phases"]]);
-  if (S.planTab === "goals") return seg + goalsEditor() + benchEditor();
-  if (S.planTab === "phases") return seg + phasesEditor();
-  if (!S.plan) return seg + `<div class="card empty stack"><h2>No plan yet</h2><p class="muted">Start from the push / pull / legs template or build your own.</p><button class="btn primary big" data-a="starter">Use the starter plan</button><button class="btn" data-a="blankplan">Build my own</button></div>`;
-  const u = units();
-  let h = seg + `<section class="card stack"><span class="label">Weight unit</span><div class="seg">${["kg", "lb"].map(k => `<button class="${u === k ? "on" : ""}" data-a="units" data-u="${k}">${k}</button>`).join("")}</div>
-    <p class="muted small" style="margin:0">Changes the label only. Weights you already logged stay as typed.</p>
-    <div class="row between"><label class="label" for="wtarget">Workouts per week</label><input class="textin" id="wtarget" data-a="wtarget" inputmode="numeric" value="${S.plan.weeklyTarget || ""}" placeholder="–" style="flex:0 0 72px;text-align:center"></div></section>`;
-  const usesLevel = S.plan.days.some(d => d.exercises.some(e => e.slot || /\{(pull|ttb)\}/.test(e.wod || "")));
-  if (usesLevel) h += `<section class="card stack"><label class="label" for="level">Your pull-up level</label><select class="sel" id="level" data-a="level">${Object.entries(LEVELS).map(([k, L]) => `<option value="${k}"${(S.plan.level || "3") === k ? " selected" : ""}>${esc(L.label)}</option>`).join("")}</select>
-    <p class="muted small" style="margin:0">${esc(level().note)} The pull-up and toes-to-bar exercises in your plan change with the level.</p></section>`;
-  if (S.plan.rules && S.plan.rules.length) h += `<section class="card stack"><h2>How to progress</h2><ul class="rules">${S.plan.rules.map(r => `<li>${esc(r)}</li>`).join("")}</ul></section>`;
+  const seg = segHTML("plantab", S.planTab, [["plan", "Workouts"], ["phases", "Phases"]]);
+  if (S.planTab === "phases") return seg + phasesEditor() + phasesTable();
+  if (!S.plan) return seg + `<div class="card empty stack"><h2>No plan yet</h2><p class="muted">Lift Log builds it from your answers about you, your sport history and your goals.</p>${J().profile ? `<button class="btn primary big" data-a="rebuild">Build my plan</button>` : `<button class="btn primary big" data-a="obstart">Start the questionnaire</button>`}<button class="btn" data-a="blankplan">Build my own</button></div>`;
+  const why = S.plan.why || [], rules = S.plan.rules || [];
+  let h = seg;
+  if (why.length || rules.length) h += `<section class="card"><details class="more"><summary>About this plan</summary><div class="stack">
+    ${why.length ? `<span class="label">Why this plan</span><ul class="rules">${why.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+    ${rules.length ? `<span class="label">How to progress</span><ul class="rules">${rules.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}</div></details></section>`;
   S.plan.days.forEach((d, di) => {
     h += `<section class="card dayed" data-day="${di}">
       <div class="row between"><span class="label">Day ${di + 1}</span><div class="row" style="gap:4px">${di > 0 ? `<button class="iconbtn" data-a="dayup" data-d="${di}" aria-label="Move day up">${ICON.up}</button>` : ""}${armBtn("rmday:" + d.id, "Delete day", "Tap to delete")}</div></div>
@@ -1381,9 +1690,14 @@ app.addEventListener("focusout", () => setTimeout(() => {
 
 function render() {
   renderQueued = false; memo.clear();
+  if (!S.onb && needsOnb()) S.onb = newOnb();
+  if (S.onb) {
+    app.innerHTML = topbar(J().profile ? "Profile" : "Welcome") + `<main class="wrap">${viewOnb()}</main>` + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : "");
+    document.body.style.overflow = ""; return;
+  }
   const titles = { train: activeSession() ? "Workout" : "Train", history: "History", progress: "Progress", plan: "Plan" };
   const body = { train: viewTrain, history: viewHistory, progress: viewProgress, plan: viewPlan }[S.view]();
-  let h = topbar(titles[S.view]);
+  let h = topbar(titles[S.view], true);
   h += `<main class="wrap">${body}</main>`;
   if (S.restAt && activeSession() && S.view === "train") h += `<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b>${S.restLen ? `<button data-a="restplus">+30 s</button>` : ""}<button data-a="restoff">Hide</button></div></div></div>`;
   h += navHTML();
@@ -1391,11 +1705,12 @@ function render() {
     const s = S.sessions.get(S.sheetId);
     h += `<div class="sheet" role="dialog" aria-modal="true" aria-label="Edit workout"><header class="topbar"><div class="wrap"><h1>Edit</h1><button class="btn sm primary" data-a="closesheet">Done</button></div></header><main class="wrap">${editorHTML(s, false)}</main></div>`;
   } else S.sheetId = null;
+  if (S.settings && !S.sheetId) h += `<div class="sheet" role="dialog" aria-modal="true" aria-label="Settings"><header class="topbar"><div class="wrap"><h1>Settings</h1><button class="btn sm primary" data-a="closesettings">Done</button></div></header><main class="wrap">${settingsHTML()}</main></div>`;
   if (S.toast) h += `<div class="toast" role="status">${esc(S.toast)}</div>`;
   const sheetScroll = app.querySelector(".sheet")?.scrollTop;
   app.innerHTML = h;
   if (sheetScroll != null) { const sh = app.querySelector(".sheet"); if (sh) sh.scrollTop = sheetScroll; }
-  document.body.style.overflow = S.sheetId ? "hidden" : "";
+  document.body.style.overflow = S.sheetId || S.settings ? "hidden" : "";
   updateWakeLock();
 }
 let toastT;
@@ -1473,21 +1788,45 @@ app.addEventListener("click", e => {
   switch (a) {
     case "view": S.view = b.dataset.v; ls.set("liftlog.view", S.view); window.scrollTo(0, 0); render(); break;
     case "retry": retryAll(); break;
-    case "starter": makePlan(STARTER()); toast("Starter plan added. Change it any time under Plan."); break;
+    case "settings": S.settings = true; render(); break;
+    case "closesettings": S.settings = false; S.advOpen = false; render(); break;
+    case "obstart": S.onb = newOnb(); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
+    case "oblater": S.onb = null; S.onbLater = true; window.scrollTo(0, 0); render(); break;
+    case "obset": {
+      const p = S.onb.p, k = b.dataset.k; p[k] = OB_NUM.includes(k) ? Number(b.dataset.v) : b.dataset.v;
+      if (k === "pull" && p.pull >= 2) p.goals = p.goals.filter(x => x !== "pullup");
+      render(); break;
+    }
+    case "obtog": {
+      const p = S.onb.p, k = b.dataset.k, v = b.dataset.v, on = p[k].includes(v);
+      if (!v) p[k] = [];
+      else if (on) p[k] = p[k].filter(x => x !== v);
+      else if (k === "goals" && p.goals.length >= 2) { toast("Pick up to two for now. You can add another later under Progress → Goals."); return; }
+      else {
+        p[k] = k === "sports" ? (v === "none" ? ["none"] : [...p[k].filter(x => x !== "none"), v]) : [...p[k], v];
+        if (k === "strong") p.weak = p.weak.filter(x => x !== v); else if (k === "weak") p.strong = p.strong.filter(x => x !== v);
+      }
+      render(); break;
+    }
+    case "obback": S.onb.step--; window.scrollTo(0, 0); render(); break;
+    case "obnext": {
+      const msg = obMissing(S.onb); if (msg) { toast(msg); return; }
+      if (S.onb.step === OB_STEPS.length - 1) { finishOnb(); return; }
+      S.onb.step++; window.scrollTo(0, 0); render(); break;
+    }
+    case "goaltog": {
+      const p = clone(jr.profile), k = b.dataset.k, on = p.goals.includes(k);
+      if (on && p.goals.length === 1) { toast("Keep at least one goal."); return; }
+      if (!on && p.goals.length >= 3) { toast("Up to three goals at a time. Turn one off first."); return; }
+      p.goals = on ? p.goals.filter(x => x !== k) : [...p.goals, k];
+      S.goalsOpen = true; applyProfile(p, false); render(); break;
+    }
+    case "rebuild": setPlan(buildPlan(jr.profile)); saveJourney(0); toast("Plan built from your profile and goals."); break;
     case "blankplan": makePlan(BLANK()); S.view = "plan"; render(); break;
     case "pickday": S.pickDay = b.dataset.id; if (b.dataset.go) { S.view = b.dataset.go; window.scrollTo(0, 0); } render(); break;
-    case "progtab": S.progTab = b.dataset.v; ls.set("liftlog.progTab", S.progTab); render(); break;
+    case "progtab": S.goalsOpen = false; S.progTab = b.dataset.v; ls.set("liftlog.progTab", S.progTab); render(); break;
     case "plantab": S.planTab = b.dataset.v; ls.set("liftlog.planTab", S.planTab); render(); break;
-    case "gotogoals": case "gotophase": S.view = "plan"; S.planTab = a === "gotogoals" ? "goals" : "phases"; window.scrollTo(0, 0); render(); break;
-    case "goaladd": {
-      const p = GOAL_PRESETS[b.dataset.p];
-      jr.goals.push({ id: uid(), name: p ? p.name : "", status: "active", createdAt: todayStr(), milestones: p ? p.ms.map(([name, ex, target, metric]) => ({ id: uid(), name, ex, target, metric })) : [{ id: uid(), name: "", metric: "r" }] });
-      saveJourney(0); render();
-      const els = app.querySelectorAll('[data-a="gname"]'), el = els[els.length - 1];
-      if (el) { el.scrollIntoView({ block: "center" }); if (!p) el.focus(); }
-      if (p) toast("Goal added. Rename the exercises to match how you log them, or link the names under Progress.");
-      break;
-    }
+    case "gototrophies": S.view = "progress"; S.progTab = "trophies"; ls.set("liftlog.view", S.view); ls.set("liftlog.progTab", S.progTab); window.scrollTo(0, 0); render(); break;
     case "gpark": goal().status = goal().status === "parked" ? "active" : "parked"; saveJourney(0); render(); break;
     case "mstick": {
       const m = ms();
@@ -1498,14 +1837,10 @@ app.addEventListener("click", e => {
       else render();
       break;
     }
-    case "msadd": goal().milestones.push({ id: uid(), name: "", metric: "r" }); saveJourney(); render(); break;
-    case "msrm": goal().milestones.splice(+b.dataset.m, 1); saveJourney(); render(); break;
-    case "badd": jr.benchmarks.push({ id: uid(), name: b.dataset.n, unit: b.dataset.u }); saveJourney(); render(); if (!b.dataset.n) { const els = app.querySelectorAll('[data-a="bname"]'); if (els.length) els[els.length - 1].focus(); } break;
-    case "brm": jr.benchmarks.splice(+b.dataset.b, 1); saveJourney(); render(); break;
     case "unalias": delete jr.aliases[norm(b.dataset.n)]; saveJourney(0); render(); break;
     case "phform": {
       if (coachCtl) coachCtl.abort();
-      const plan = b.dataset.plan || (coachOn() ? "ai" : "keep");
+      const plan = b.dataset.plan || (coachOn() ? "ai" : J().profile ? "profile" : "keep");
       S.phaseForm = { name: "", focus: "", plan, keep: jr.goals.filter(g => g.status !== "parked" && !goalState(g).done).map(g => g.id) };
       S.coach = null; if (plan === "ai") openCoach("new");
       render(); const el = document.getElementById("np-name"); if (el) { el.scrollIntoView({ block: "center" }); el.focus(); } break;
@@ -1569,7 +1904,7 @@ app.addEventListener("click", e => {
     case "opensess": S.sheetId = b.dataset.id; render(); break;
     case "closesheet": S.sheetId = null; render(); break;
     case "metric": S.progMetric = b.dataset.m; ls.set("liftlog.progMetric", S.progMetric); render(); break;
-    case "units": S.plan.units = b.dataset.u; savePlan(0); render(); break;
+    case "units": jr.settings = { ...jr.settings, units: b.dataset.u }; S.advOpen = true; saveJourney(0); render(); break;
     case "dayup": { const d = +b.dataset.d; [S.plan.days[d - 1], S.plan.days[d]] = [S.plan.days[d], S.plan.days[d - 1]]; savePlan(); render(); break; }
     case "dayadd": S.plan.days.push({ id: uid(), name: "", exercises: [{ id: uid(), name: "", sets: 3, reps: "8-10" }] }); savePlan(); render(); { const last = S.plan.days[S.plan.days.length - 1]; const el = document.getElementById("dn-" + last.id); if (el) { el.scrollIntoView({ block: "center" }); el.focus(); } } break;
     case "exadd": { const d = S.plan.days[+b.dataset.d]; const lastEx = d.exercises[d.exercises.length - 1]; const e2 = { id: uid(), name: "", sets: 3, reps: "8-10" }; if (lastEx && lastEx.block) e2.block = lastEx.block; d.exercises.push(e2); savePlan(); render(); const el = document.getElementById("en-" + e2.id); if (el) el.focus(); break; }
@@ -1578,15 +1913,15 @@ app.addEventListener("click", e => {
   }
 });
 
-const msOf = t => S.journey.goals[+t.dataset.g].milestones[+t.dataset.m];
 app.addEventListener("input", e => {
   const t = e.target, a = t.dataset.a; if (!a) return;
   memo.clear();
-  if (a === "gname") { S.journey.goals[+t.dataset.g].name = t.value; saveJourney(); }
-  else if (a === "msname") { msOf(t).name = t.value; saveJourney(); }
-  else if (a === "msex") { msOf(t).ex = t.value.trim(); saveJourney(); }
-  else if (a === "mstarget") { msOf(t).target = parseNum(t.value) || 0; saveJourney(); }
-  else if (a === "bname") { S.journey.benchmarks[+t.dataset.b].name = t.value; saveJourney(); }
+  if (a === "obnum") {
+    const p = S.onb.p, k = t.dataset.k, v = parseNum(t.value);
+    if (k === "cm") p.heightCm = v; else if (k === "kg") p.weightKg = v; else if (k === "lb") p.weightKg = v == null ? null : v / 2.20462;
+    else if (k === "age") p.age = v == null ? null : Math.round(v);
+    else { const ft = parseNum(document.getElementById("ob-ft").value), inch = parseNum(document.getElementById("ob-in").value) || 0; p.heightCm = ft == null ? null : (ft * 12 + inch) * 2.54; }
+  }
   else if (a === "phname") { curPhase().name = t.value; saveJourney(); }
   else if (a === "phfocus") { curPhase().focus = t.value; saveJourney(); }
   else if (a === "coachgoal") S.coach.goal = t.value;
@@ -1615,9 +1950,7 @@ app.addEventListener("change", e => {
   const t = e.target, a = t.dataset.a;
   memo.clear();
   if (a === "progex") { S.progEx = t.value; ls.set("liftlog.progEx", S.progEx); render(); }
-  else if (a === "msex" || a === "mstarget" || a === "msname") scheduleRender();
-  else if (a === "msmetric") { msOf(t).metric = t.value; saveJourney(0); render(); }
-  else if (a === "bunit") { S.journey.benchmarks[+t.dataset.b].unit = t.value; saveJourney(0); }
+  else if (a === "obuseplan") S.onb.usePlan = t.checked;
   else if (a === "exunit") { const x = S.plan.days[+t.dataset.d].exercises[+t.dataset.e]; if (t.value) x.unit = t.value; else delete x.unit; savePlan(0); }
   else if (a === "npplan") {
     S.phaseForm.plan = t.value;

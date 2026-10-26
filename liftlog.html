@@ -236,24 +236,24 @@ select.sel { width: 100%; height: 48px; border: 1px solid var(--line); border-ra
 .tbl td:last-child, .tbl th:last-child { text-align: right; }
 .scrollx { overflow-x: auto; }
 
-/* plan editor */
-.dayed { display: flex; flex-direction: column; gap: 10px; }
-.dayed .dayname { font-family: var(--f-display); font-stretch: var(--wd); font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; }
-.pex { display: grid; grid-template-columns: minmax(0, 1fr) 56px 76px auto; gap: 6px; align-items: center; }
-.pex input { height: 42px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); padding: 0 10px; font-size: 16px; min-width: 0; width: 100%; }
+/* plan: each day reads as a list; Edit turns that one day into fields */
+.dayed { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 84px; }
+.dayed h2 { font-size: 22px; margin: 0; overflow-wrap: anywhere; }
+.dayed .dayname { font-family: var(--f-display); font-stretch: var(--wd); font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: .02em; }
+.dayed .exlist .tgt { text-align: right; }
+.dayed .exlist .tgt small { display: block; font-size: 12px; }
+.dayed .exlist .wod { display: block; margin-top: 6px; font-size: 14px; }
+.pex { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.blockh + .pex { border-top: 0; padding-top: 0; }
+.pex input, .pex select { height: 42px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); padding: 0 10px; font-size: 16px; min-width: 0; width: 100%; }
+.pex select { padding: 0 6px; }
 .pex input.c { text-align: center; padding: 0 4px; }
-.pex .ord { display: flex; gap: 2px; }
-.pex .ord button { width: 30px; height: 42px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; padding: 0; }
-.pex .ord button svg { width: 16px; height: 16px; }
-.pexhead { display: grid; grid-template-columns: minmax(0, 1fr) 56px 76px 92px; gap: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
-.pexhead span:nth-child(2), .pexhead span:nth-child(3) { text-align: center; }
-/* phones: the exercise name gets its own line, sets, reps and the buttons go below it */
-@media (max-width: 560px) {
-  .pex { grid-template-columns: 56px 76px minmax(0, 1fr); }
-  .pex > input:first-child { grid-column: 1 / -1; }
-  .pex .ord { justify-content: flex-end; }
-  .pexhead { display: none; }
-}
+.pex input:disabled { opacity: .75; }
+.pex .nm { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.pex .nm .iconbtn { border: 0; background: none; color: var(--muted); }
+.pexnums, .pexhead { display: grid; grid-template-columns: 46px minmax(0, 1fr) 66px 56px; gap: 6px; }
+.pexhead { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.pexhead span { text-align: center; }
 
 /* sheet */
 .sheet { position: fixed; inset: 0; z-index: 40; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -276,13 +276,7 @@ select.sel { width: 100%; height: 48px; border: 1px solid var(--line); border-ra
 .restbtn { border: 1px solid var(--line); background: var(--surface-2); color: var(--accent); border-radius: 8px; min-height: 32px; padding: 0 10px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 8px; }
 .restbar .pill.end { background: var(--accent); color: var(--accent-ink); }
 .restbar .pill.end button { color: var(--accent-ink); }
-.pex2 { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 6px; margin-top: -4px; }
-.pex2 input { height: 38px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); padding: 0 10px; font-size: 14px; min-width: 0; width: 100%; }
-.pex2 input.c { text-align: center; padding: 0 4px; }
-.pex2.u { grid-template-columns: minmax(0, 1fr) 70px 76px; }
-.pex2 select { height: 38px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); padding: 0 6px; font-size: 14px; min-width: 0; width: 100%; }
-.pex input:disabled { opacity: .75; }
-.slotnote { font-size: 12px; color: var(--muted); margin-top: -4px; }
+.slotnote { font-size: 12px; color: var(--muted); }
 .tests { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 .tcard { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .tcard b { font-family: var(--f-display); font-stretch: var(--wd); font-size: 26px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
@@ -464,7 +458,7 @@ const S = {
   journey: null, journeyLoaded: false,   // phases, goals, benchmarks, exercise links
   sessions: new Map(), sessionsLoaded: false,
   progTab: (t => ["lifts", "bench", "goals", "trophies"].includes(t) ? t : "lifts")(ls.get("liftlog.progTab")),
-  planTab: ls.get("liftlog.planTab") === "phases" ? "phases" : "plan", phaseForm: null, settings: false,
+  planTab: ls.get("liftlog.planTab") === "phases" ? "phases" : "plan", planEdit: null, phaseForm: null, settings: false,
   view: (() => { const h = location.hash.slice(1); return ["train", "history", "progress", "plan"].includes(h) ? h : (ls.get("liftlog.view") || "train"); })(),
   sheetId: null,
   calMonth: null, calDay: null,
@@ -2310,23 +2304,58 @@ function viewPlan() {
   if (why.length || rules.length) h += `<section class="card"><details class="more"><summary>About this plan</summary><div class="stack">
     ${why.length ? `<span class="label">Why this plan</span><ul class="rules">${why.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
     ${rules.length ? `<span class="label">How to progress</span><ul class="rules">${rules.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}</div></details></section>`;
-  S.plan.days.forEach((d, di) => {
-    h += `<section class="card dayed" data-day="${di}">
-      <div class="row between"><span class="label">Day ${di + 1}</span><div class="row" style="gap:4px">${di > 0 ? `<button class="iconbtn" data-a="dayup" data-d="${di}" aria-label="Move day up">${ICON.up}</button>` : ""}${armBtn("rmday:" + d.id, "Delete day", "Tap to delete")}</div></div>
-      <input class="textin dayname" id="dn-${d.id}" data-a="dayname" data-d="${di}" value="${esc(d.name)}" placeholder="Day name, e.g. Upper A" aria-label="Day name">
-      ${d.exercises.length ? `<div class="pexhead"><span>Exercise</span><span>Sets</span><span>Reps</span><span></span></div>` : ""}
-      ${d.test ? `<p class="muted small" style="margin:0">Test day: not part of the normal rotation. The app reminds you every 6 weeks.</p>` : ""}
-      ${d.exercises.map((e0, ei) => { const e = resolveEx(e0), fx = e0.slot ? " disabled" : "", prevB = ei ? d.exercises[ei - 1].block : ""; return `${e0.block && e0.block !== prevB ? `<div class="blockh">${esc(e0.block)}</div>` : ""}<div class="pex">
-        <input id="en-${e.id}" data-a="exname" data-d="${di}" data-e="${ei}" value="${esc(e.name)}" placeholder="Exercise" list="exnames-plan" aria-label="Exercise name"${fx}>
-        <input class="c" id="es-${e.id}" inputmode="numeric" data-a="exsets" data-d="${di}" data-e="${ei}" value="${e.sets || ""}" aria-label="Sets"${fx}>
-        <input class="c" id="er-${e.id}" data-a="exreps" data-d="${di}" data-e="${ei}" value="${esc(e.reps || "")}" placeholder="8-10" aria-label="Rep target"${fx}>
-        <div class="ord">${e0.kind ? "" : `<button data-a="swapopen" data-d="${di}" data-e="${ei}" aria-label="Swap ${esc(e.name || "exercise")}" aria-expanded="${!!(S.swap && S.swap.d === di && S.swap.e === ei)}">${ICON.swap}</button>`}<button data-a="exmv" data-d="${di}" data-e="${ei}" data-dir="-1" aria-label="Move up"${ei ? "" : " disabled style=\"opacity:.25\""}>${ICON.up}</button><button data-a="exmv" data-d="${di}" data-e="${ei}" data-dir="1" aria-label="Move down"${ei < d.exercises.length - 1 ? "" : " disabled style=\"opacity:.25\""}>${ICON.down}</button><button data-a="exrm" data-d="${di}" data-e="${ei}" aria-label="Remove exercise">${ICON.x}</button></div>
-      </div>${S.swap && S.swap.d === di && S.swap.e === ei ? swapHTML(e0) : ""}${e0.slot ? `<div class="slotnote">Set by your pull-up level</div>` : `<div class="pex2${e0.kind ? "" : " u"}"><input id="eo-${e.id}" data-a="exnote" data-d="${di}" data-e="${ei}" value="${esc(e0.note || "")}" placeholder="${e0.kind === "metcon" ? "Metcon note" : "Note"}" aria-label="Note">${e0.kind ? "" : `<select data-a="exunit" data-d="${di}" data-e="${ei}" aria-label="Logged in">${[["", "reps"], ["s", "sec"], ["m", "m"]].map(([k, l]) => `<option value="${k}"${(e0.unit === "reps" ? "" : e0.unit || "") === k ? " selected" : ""}>${l}</option>`).join("")}${e0.unit && !["s", "m", "reps"].includes(e0.unit) ? `<option value="${esc(e0.unit)}" selected>${esc(e0.unit)}</option>` : ""}</select>`}<input class="c" id="et-${e.id}" inputmode="numeric" data-a="exrest" data-d="${di}" data-e="${ei}" value="${e0.rest || ""}" placeholder="Rest s" aria-label="Rest in seconds"></div>`}`; }).join("")}
-      <button class="linkbtn" style="align-self:flex-start" data-a="exadd" data-d="${di}">+ Add exercise</button></section>`;
-  });
+  S.plan.days.forEach((d, di) => { h += S.planEdit === d.id ? dayEditHTML(d, di) : dayReadHTML(d, di); });
   h += `<datalist id="exnames-plan">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>`;
-  h += `<button class="btn big" data-a="dayadd">+ Add workout day</button>`;
+  h += `<button class="btn" data-a="dayadd">+ Add workout day</button>`;
   return h;
+}
+const blockHead = (d, ei) => { const b = d.exercises[ei].block; return b && b !== (ei ? d.exercises[ei - 1].block : "") ? `<div class="blockh">${esc(b)}</div>` : ""; };
+// a day as you'll train it: nothing to tap by accident, Edit opens the fields
+function dayReadHTML(d, di) {
+  const rows = [];
+  d.exercises.forEach((e0, ei) => {
+    const e = resolveEx(e0); if (!e.name.trim()) return;
+    const u = e.unit && e.unit !== "reps" ? " " + e.unit : "", t = exTarget(e);
+    const tgt = e.kind ? "" : `<span class="tgt">${esc(t + (t ? u : ""))}${e.rest ? `<small>rest ${mmss(e.rest * 1000)}</small>` : ""}</span>`;
+    const head = blockHead(d, ei);
+    if (head) rows.push(`</ul>${head}<ul class="exlist">`);
+    rows.push(`<li><span${e.kind === "info" ? ' class="muted"' : ""}>${esc(e.name)}${e.note ? `<br><span class="muted small">${esc(e.note)}</span>` : ""}${e.kind === "metcon" && e.wod ? `<span class="wod">${esc(e.wod)}</span>` : ""}</span>${tgt}</li>`);
+  });
+  return `<section class="card dayed" data-day="${di}">
+    <div class="row between"><span class="label">Day ${di + 1}</span><button class="btn sm" data-a="dayedit" data-d="${di}">Edit</button></div>
+    <h2>${esc(d.name || "Day " + (di + 1))}</h2>
+    ${d.test ? `<p class="muted small" style="margin:0">Test day: not part of the normal rotation. The app reminds you every 6 weeks.</p>` : ""}
+    ${(`<ul class="exlist">${rows.join("")}</ul>`).replace(/<ul class="exlist"><\/ul>/g, "") || '<p class="muted small" style="margin:0">No exercises yet. Tap Edit to add some.</p>'}</section>`;
+}
+function dayEditHTML(d, di) {
+  const first = d.exercises.findIndex(e => !e.kind && !e.slot);
+  return `<section class="card dayed" data-day="${di}">
+    <div class="row between"><span class="label">Day ${di + 1}</span><button class="btn sm primary" data-a="daydone">Done</button></div>
+    <input class="textin dayname" id="dn-${d.id}" data-a="dayname" data-d="${di}" value="${esc(d.name)}" placeholder="Day name, e.g. Upper A" aria-label="Day name">
+    ${d.exercises.map((e0, ei) => { const e = resolveEx(e0), fx = e0.slot ? " disabled" : "", sw = !!(S.swap && S.swap.d === di && S.swap.e === ei);
+      const nameIn = `<input id="en-${e.id}" data-a="exname" data-d="${di}" data-e="${ei}" value="${esc(e.name)}" placeholder="Exercise" list="exnames-plan" aria-label="Exercise name"${fx}>`;
+      return `${blockHead(d, ei)}<div class="pex">
+      ${e0.kind ? nameIn : `<div class="nm">${nameIn}<button class="iconbtn" data-a="swapopen" data-d="${di}" data-e="${ei}" aria-label="Swap ${esc(e.name || "exercise")}" aria-expanded="${sw}">${ICON.swap}</button></div>`}
+      ${e0.slot ? `<div class="slotnote">Set by your pull-up level</div>` : `${e0.kind ? "" : `${ei === first ? `<div class="pexhead" aria-hidden="true"><span>Sets</span><span>Reps</span><span>Unit</span><span>Rest s</span></div>` : ""}<div class="pexnums">
+        <input class="c" id="es-${e.id}" inputmode="numeric" data-a="exsets" data-d="${di}" data-e="${ei}" value="${e.sets || ""}" aria-label="Sets">
+        <input class="c" id="er-${e.id}" data-a="exreps" data-d="${di}" data-e="${ei}" value="${esc(e.reps || "")}" placeholder="8-10" aria-label="Rep target">
+        <select data-a="exunit" data-d="${di}" data-e="${ei}" aria-label="Logged in">${[["", "reps"], ["s", "sec"], ["m", "m"]].map(([k, l]) => `<option value="${k}"${(e0.unit === "reps" ? "" : e0.unit || "") === k ? " selected" : ""}>${l}</option>`).join("")}${e0.unit && !["s", "m", "reps"].includes(e0.unit) ? `<option value="${esc(e0.unit)}" selected>${esc(e0.unit)}</option>` : ""}</select>
+        <input class="c" id="et-${e.id}" inputmode="numeric" data-a="exrest" data-d="${di}" data-e="${ei}" value="${e0.rest || ""}" placeholder="–" aria-label="Rest in seconds"></div>`}
+      <input id="eo-${e.id}" data-a="exnote" data-d="${di}" data-e="${ei}" value="${esc(e0.note || "")}" placeholder="${e0.kind === "metcon" ? "Metcon note" : "Note"}" aria-label="Note">`}
+    </div>${sw ? swapHTML(e0) : ""}`; }).join("")}
+    <button class="linkbtn" style="align-self:flex-start" data-a="exadd" data-d="${di}">+ Add exercise</button>
+    <p class="muted small" style="margin:0">To remove an exercise, clear its name. A day with no name and no exercises is removed when you tap Done.</p></section>`;
+}
+// leaving Edit drops exercises whose name was cleared, and the day itself once it has no name and no exercises
+function closeDayEdit() {
+  const d = S.plan && S.plan.days.find(x => x.id === S.planEdit);
+  S.planEdit = null; S.swap = null;
+  if (!d) return;
+  const n = d.exercises.length;
+  d.exercises = d.exercises.filter(e => e.slot || (e.name || "").trim());
+  if (!d.exercises.length && !d.name.trim()) S.plan.days = S.plan.days.filter(x => x !== d);
+  else if (d.exercises.length === n) return;
+  savePlan(0);
 }
 
 /* ---------- render ---------- */
@@ -2593,7 +2622,6 @@ app.addEventListener("click", e => {
       if (kind === "rmex") { const ss = S.sessions.get(x); ss.exercises.splice(+y, 1); saveSession(ss); }
       else if (kind === "discard") { deleteSession(x); S.restAt = null; toast("Workout discarded."); return; }
       else if (kind === "delsess") { deleteSession(x); S.sheetId = null; toast("Workout deleted."); return; }
-      else if (kind === "rmday") { S.plan.days = S.plan.days.filter(d => d.id !== x); savePlan(0); }
       else if (kind === "rmgoal") { jr.goals = jr.goals.filter(g => g.id !== x); saveJourney(0); }
       else if (kind === "skiptest") { delete S.plan.start; S.pickDay = null; savePlan(0); toast("Test skipped. Pick weights that leave 2 reps in reserve."); return; }
       render(); break;
@@ -2609,11 +2637,10 @@ app.addEventListener("click", e => {
     case "closesheet": S.sheetId = null; render(); break;
     case "metric": S.progMetric = b.dataset.m; ls.set("liftlog.progMetric", S.progMetric); render(); break;
     case "units": jr.settings = { ...jr.settings, units: b.dataset.u }; S.advOpen = true; saveJourney(0); render(); break;
-    case "dayup": { const d = +b.dataset.d; [S.plan.days[d - 1], S.plan.days[d]] = [S.plan.days[d], S.plan.days[d - 1]]; savePlan(); render(); break; }
-    case "dayadd": S.plan.days.push({ id: uid(), name: "", exercises: [{ id: uid(), name: "", sets: 3, reps: "8-10" }] }); savePlan(); render(); { const last = S.plan.days[S.plan.days.length - 1]; const el = document.getElementById("dn-" + last.id); if (el) { el.scrollIntoView({ block: "center" }); el.focus(); } } break;
+    case "dayedit": closeDayEdit(); S.planEdit = S.plan.days[+b.dataset.d].id; render(); { const el = document.getElementById("dn-" + S.planEdit); if (el) el.closest(".card").scrollIntoView({ block: "start" }); } break;
+    case "daydone": closeDayEdit(); render(); break;
+    case "dayadd": { closeDayEdit(); const nd = { id: uid(), name: "", exercises: [{ id: uid(), name: "", sets: 3, reps: "8-10" }] }; S.plan.days.push(nd); S.planEdit = nd.id; savePlan(); render(); const el = document.getElementById("dn-" + nd.id); if (el) { el.scrollIntoView({ block: "center" }); el.focus(); } break; }
     case "exadd": { const d = S.plan.days[+b.dataset.d]; const lastEx = d.exercises[d.exercises.length - 1]; const e2 = { id: uid(), name: "", sets: 3, reps: "8-10" }; if (lastEx && lastEx.block) e2.block = lastEx.block; d.exercises.push(e2); savePlan(); render(); const el = document.getElementById("en-" + e2.id); if (el) el.focus(); break; }
-    case "exrm": { const d = S.plan.days[+b.dataset.d]; d.exercises.splice(+b.dataset.e, 1); savePlan(); render(); break; }
-    case "exmv": { const d = S.plan.days[+b.dataset.d], i = +b.dataset.e, j = i + +b.dataset.dir; if (j < 0 || j >= d.exercises.length) return; [d.exercises[i], d.exercises[j]] = [d.exercises[j], d.exercises[i]]; savePlan(); render(); break; }
   }
 });
 

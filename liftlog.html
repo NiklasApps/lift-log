@@ -129,6 +129,11 @@ main.wrap { padding-block: 4px calc(var(--nav-h) + 96px); display: flex; flex-di
 .daypick { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; min-height: 40px; padding: 0 14px; font-weight: 600; }
 .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip.off { color: var(--muted); border-style: dashed; }
+.chip small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); margin-top: -2px; }
+.chip.off { min-height: 44px; line-height: 1.15; padding-block: 4px; text-align: left; }
+.swaps { background: var(--surface-2); border-radius: 11px; padding: 12px; margin-top: 8px; }
 
 /* workout editor */
 .sesshead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
@@ -242,6 +247,13 @@ select.sel { width: 100%; height: 48px; border: 1px solid var(--line); border-ra
 .pex .ord button svg { width: 16px; height: 16px; }
 .pexhead { display: grid; grid-template-columns: minmax(0, 1fr) 56px 76px 92px; gap: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
 .pexhead span:nth-child(2), .pexhead span:nth-child(3) { text-align: center; }
+/* phones: the exercise name gets its own line, sets, reps and the buttons go below it */
+@media (max-width: 560px) {
+  .pex { grid-template-columns: 56px 76px minmax(0, 1fr); }
+  .pex > input:first-child { grid-column: 1 / -1; }
+  .pex .ord { justify-content: flex-end; }
+  .pexhead { display: none; }
+}
 
 /* sheet */
 .sheet { position: fixed; inset: 0; z-index: 40; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -406,6 +418,7 @@ const mmss = ms => { const t = Math.max(0, Math.floor(ms / 1000)); const h = Mat
 const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
 const ICON = {
+  swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4"/></svg>',
   mark: '<svg class="mark" viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" rx="230" fill="#0d1b2b"/><g fill="none" stroke-width="66" stroke-linecap="round" stroke-linejoin="round"><path d="M180 619H362L431 495L545 704" stroke="#fff"/><path d="M545 704L814 434M680 434H814V570" stroke="#c7f431"/></g></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   train: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 7v10M3.5 9.5v5M18 7v10M20.5 9.5v5M6 12h12"/></svg>',
@@ -886,10 +899,101 @@ const GOALS = [
   ["pullup", "First strict pull-up", "From hanging to chin over the bar."],
   ["muscleup", "Muscle-up", "Pull-up strength first, then the move over the bar."],
   ["handstand", "Handstand walk", "From wall holds to walking on your hands."],
-  ["hspu", "Strict handstand push-up", "Pike push-ups up to full handstand push-ups."]
+  ["hspu", "Strict handstand push-up", "Pike push-ups up to full handstand push-ups."],
+  ["kipping", "Kipping and toes to bar", "CrossFit gymnastics: from the kip swing to linked reps."]
 ];
-const SKILL_SIDE = { handstand: "push", hspu: "push", muscleup: "pull", pullup: "pull" };
-const FOCUS = { strength: ["push", "pull", "legs"], muscle: ["push", "pull", "legs"], fitness: ["engine"], pullup: ["pull"], muscleup: ["pull"], handstand: ["push", "balance"], hspu: ["push", "balance"] };
+const SKILL_SIDE = { handstand: "push", hspu: "push", muscleup: "pull", pullup: "pull", kipping: "pull" };
+const FOCUS = { strength: ["push", "pull", "legs"], muscle: ["push", "pull", "legs"], fitness: ["engine"], pullup: ["pull"], muscleup: ["pull"], handstand: ["push", "balance"], hspu: ["push", "balance"], kipping: ["pull", "core"] };
+const KIP_LV = ["no kipping yet", "working on the kip swing", "linked kipping pull-ups", "toes to bar or chest to bar"];
+const FOCUS_LV = { balanced: "whole body", upper: "upper body first, legs kept strong", lower: "lower body first, upper body kept strong" };
+const metconOn = p => p.metcon != null ? !!p.metcon : p.goals.includes("fitness") || p.sports.includes("crossfit");
+// pull-up level (Settings) from the questionnaire: strict pull-ups, then kipping
+const levelFor = p => p.pull <= 1 ? "1" : p.pull === 2 ? "2" : (p.kip || 0) >= 3 ? "4" : "3";
+
+/* ---------- equipment and exercise swaps ---------- */
+const GEAR = [["barbell", "Barbell and rack"], ["dumbbells", "Dumbbells"], ["kettlebells", "Kettlebells"], ["bench", "Bench"], ["cables", "Cable machine"], ["machines", "Machines"],
+  ["bar", "Pull-up bar"], ["rings", "Rings"], ["dipbars", "Dip bars"], ["box", "Plyo box"], ["rower", "Rower or bike"], ["wallball", "Wall ball"], ["ghd", "GHD"]];
+const GEAR_BASE = { gym: ["barbell", "dumbbells", "kettlebells", "bench", "cables", "machines", "bar", "dipbars", "box", "rower"], home: ["dumbbells", "kettlebells", "bench", "bar"], bw: ["bar"] };
+const GEAR_KW = { barbell: /barbell|squat rack|power rack|\bracks?\b|olympic bar/, dumbbells: /dumb ?bells?|\bdbs?\b/, kettlebells: /kettle ?bells?|\bkbs?\b/, bench: /\bbench(?:es)?\b/,
+  cables: /\bcables?\b|pulley|cable (?:machine|tower)/, machines: /machines?|leg press|lat pull ?down|pec (?:deck|fly)|butterfly|chest press/, bar: /(?:pull|chin)[\s-]?up bar|\bbar\b/,
+  rings: /\brings?\b/, dipbars: /dip (?:bars?|station|stand)|parallel bars|parallettes/, box: /plyo|jump box|\bbox(?:es)?\b/,
+  rower: /rower|rowing machine|\berg\b|assault|air ?bike|echo bike|\bbikes?\b|ski ?erg/, wallball: /wall ?balls?|med(?:icine)? ?balls?/, ghd: /\bghd\b|glute[\s-]?ham/ };
+// a CrossFit gym usually has rings, wall balls and a GHD as well
+function gearOf(p) {
+  const g = new Set([...(GEAR_BASE[p.equip] || GEAR_BASE.gym), ...(p.equip === "gym" && (p.sports || []).includes("crossfit") ? ["rings", "wallball", "ghd"] : []), ...(p.have || [])]);
+  for (const k of p.missing || []) g.delete(k);
+  return GEAR.map(x => x[0]).filter(k => g.has(k));
+}
+const curGear = () => new Set(S.plan && S.plan.gear || (J().profile ? gearOf(J().profile) : GEAR.map(x => x[0])));
+// "bench+barbell|dumbbells": a bench and either a barbell or dumbbells
+const gearOk = (need, G) => !need || need.split("+").every(a => a.split("|").some(x => G.has(x)));
+const gearNeeds = (need, G) => (need || "").split("+").filter(a => !a.split("|").some(x => G.has(x))).map(a => a.split("|").map(x => optLabel(GEAR, x).toLowerCase()).join(" or "));
+// movement patterns: [name, equipment needed, note, unit]; each list goes from the usual gym choice to the most basic
+const MOVES = {
+  hpush: [["Bench press", "bench+barbell"], ["Dumbbell bench press", "bench+dumbbells"], ["Dumbbell floor press", "dumbbells"], ["Machine chest press", "machines"], ["Push-ups", ""], ["Incline push-ups", ""], ["Archer push-ups", "", "Each side."]],
+  incpush: [["Incline bench press", "bench+barbell"], ["Incline dumbbell press", "bench+dumbbells"], ["Feet-elevated push-ups", ""]],
+  vpush: [["Overhead press", "barbell"], ["Dumbbell shoulder press", "dumbbells"], ["Kettlebell press", "kettlebells"], ["Machine shoulder press", "machines"], ["Landmine press", "barbell"], ["Half-kneeling one-arm press", "dumbbells|kettlebells", "Each side."], ["Pike push-ups", ""], ["Incline pike push-ups", ""]],
+  dips: [["Dips", "dipbars"], ["Ring dips", "rings"], ["Bench dips", "bench"], ["Close-grip push-ups", ""], ["Diamond push-ups", ""]],
+  vpull: [["Strict pull-ups", "bar"], ["Weighted pull-ups", "bar"], ["Pull-up negatives", "bar"], ["Band-assisted pull-ups", "bar"], ["Chest to bar pull-ups", "bar"], ["Lat pulldown", "cables|machines"]],
+  hpull: [["Barbell row", "barbell"], ["Chest-supported row", "bench+dumbbells"], ["Dumbbell row", "dumbbells", "Each side."], ["One-arm dumbbell row", "dumbbells", "Each side."], ["Machine row", "machines"], ["Seated cable row", "cables"], ["Ring rows", "rings"], ["Inverted rows", "bar"]],
+  squat: [["Back squat", "barbell"], ["Front squat", "barbell"], ["Box squat", "barbell+box|bench"], ["Goblet squat", "dumbbells|kettlebells"], ["Goblet box squat", "dumbbells|kettlebells"], ["Dumbbell front squat", "dumbbells"], ["Leg press", "machines"], ["Bodyweight squats", ""], ["Box squats", ""], ["Pistol squats", "", "Each leg."], ["Wall sit", "", "", "s"]],
+  hinge: [["Deadlift", "barbell"], ["Romanian deadlift", "barbell"], ["Dumbbell Romanian deadlift", "dumbbells"], ["Kettlebell deadlift", "kettlebells"], ["Kettlebell swings", "kettlebells"], ["Hip thrust", "bench+barbell"], ["Dumbbell hip thrust", "dumbbells"], ["Leg curl", "machines"], ["Single-leg dumbbell RDL", "dumbbells", "Each leg."], ["Glute bridge", ""], ["Single-leg hip thrust", "", "Each leg."], ["Nordic curl negatives", ""]],
+  single: [["Bulgarian split squat", "", "Each leg."], ["Walking lunges", "", "Each leg."], ["Reverse lunges", "", "Each leg."], ["Step-ups", "box|bench", "Each leg."]],
+  carry: [["Farmer carries", "dumbbells|kettlebells", "", "m"], ["Suitcase carry", "dumbbells|kettlebells", "One side at a time.", "m"], ["Dead hangs", "bar", "", "s"], ["Dead hang", "bar", "", "s"]],
+  triceps: [["Triceps pushdown", "cables"], ["Overhead triceps extension", "cables|dumbbells"], ["Skull crushers", "bench+barbell|dumbbells"], ["Diamond push-ups", ""], ["Bench dips", "bench"]],
+  biceps: [["Biceps curl", "barbell|dumbbells"], ["Barbell curls", "barbell"], ["Dumbbell curl", "dumbbells"], ["Dumbbell biceps curls", "dumbbells"], ["Hammer curls", "dumbbells"], ["Cable curl", "cables"], ["Chin-ups", "bar"]],
+  reardelt: [["Face pulls", "cables"], ["Face pull", "cables"], ["Reverse dumbbell fly", "dumbbells"], ["Band pull-aparts", ""], ["Prone Y-raises", ""]],
+  lateral: [["Lateral raises", "dumbbells"], ["Lateral raise", "dumbbells"], ["Cable lateral raise", "cables"], ["Prone Y-raises", ""]],
+  fly: [["Pec fly (butterfly machine)", "machines"], ["Cable fly", "cables"], ["Dumbbell fly", "bench+dumbbells"], ["Deficit push-ups", ""]],
+  extrot: [["Shoulder external rotation", "cables", "Each side."], ["Band external rotation", "", "Each side."], ["Side-lying dumbbell external rotation", "dumbbells", "Each side."]],
+  core: [["Sit-ups", ""], ["GHD sit-ups", "ghd"], ["Hanging knee raises", "bar"], ["Ab wheel rollouts", ""], ["Plank", "", "", "s"], ["Dead bug", "", "Each side."], ["Hollow body hold", "", "", "s"], ["V-ups", ""]],
+  calves: [["Calf raise", "dumbbells|machines"], ["Single-leg calf raise", ""]],
+  power: [["Box jumps", "box", "Step down, don't jump down."], ["Broad jumps", ""], ["Jump squats", "", "Land softly."]],
+  kip: [["Kipping pull-ups", "bar"], ["Chest to bar", "bar"], ["Kip swing practice", "bar", "", "swings"], ["Band-assisted pull-ups", "bar"], ["Jumping pull-ups", "bar"], ["Ring rows", "rings"]],
+  ttb: [["Toes to bar", "bar"], ["Kipping knees to chest", "bar"], ["Hanging knee raises", "bar"], ["V-ups", ""]]
+};
+const SLOT_PT = { strict: "vpull", kip: "kip", ttb: "ttb" };
+const MOVE_OF = new Map(), MOVE_BY = new Map();
+for (const [pt, list] of Object.entries(MOVES)) for (const [name, need, note, unit] of list) { const k = norm(name); if (!MOVE_OF.has(k)) { MOVE_OF.set(k, pt); MOVE_BY.set(k, { name, need, note, unit }); } }
+const bareName = n => norm(String(n || "").replace(/\s*\([^)]*\)/g, ""));
+const moveOf = name => MOVE_OF.get(norm(name)) || MOVE_OF.get(bareName(name)) || null;
+const moveBy = name => MOVE_BY.get(norm(name)) || MOVE_BY.get(bareName(name)) || null;
+// other exercises for the same movement; ones your equipment allows come first
+function swapOpts(e, G) {
+  const pt = e.slot ? SLOT_PT[e.slot] : moveOf(e.name); if (!pt) return [];
+  const cur = resolveEx(e).name, sg = s => bareName(s).replace(/s$/, "");
+  const seen = new Set([sg(cur)]), out = [];
+  for (const [name, need, note, unit] of MOVES[pt]) { if (seen.has(sg(name))) continue; seen.add(sg(name)); out.push({ name, need, note, unit, ok: gearOk(need, G) }); }
+  return out.sort((a, b) => b.ok - a.ok);
+}
+// the first exercise you can do: the preferred names in order, then the rest of the movement
+function pickMove(pt, prefs, G, avoid) {
+  const list = [...prefs.map(n => moveBy(n)).filter(Boolean), ...MOVES[pt].map(([name, need, note, unit]) => ({ name, need, note, unit }))];
+  return list.find(m => gearOk(m.need, G) && !(avoid && avoid.has(m.name))) || null;
+}
+// swap a plan or workout exercise; a level-set (slot) exercise becomes a fixed one
+function applySwap(e, opt) {
+  if (e.slot) { const r = resolveEx(e); e.sets = r.sets; e.reps = r.reps; e.rest = r.rest; delete e.slot; }
+  const each = /^each|one side/i.test(opt.note || "");
+  e.name = opt.name;
+  if (opt.note) e.note = opt.note; else delete e.note;
+  if (opt.unit) e.unit = opt.unit; else delete e.unit;
+  const side = s => String(s).replace(/\s*\/\s*side$/, "") + (each && !/(?:max|min)$/.test(s) ? " / side" : "");
+  if (e.reps) e.reps = side(e.reps);
+  if (e.target) e.target = side(e.target);
+}
+// swaps every planned exercise your equipment doesn't allow, or that you said you'd rather skip; returns "old → new" for each
+function fitPlanToGear(plan, G, avoid) {
+  const done = [];
+  for (const d of plan.days) for (const e of d.exercises) {
+    if (e.kind || e.slot) continue;
+    const pt = moveOf(e.name), m = moveBy(e.name);
+    if (!pt || !m || (gearOk(m.need, G) && !(avoid && avoid.has(m.name)))) continue;
+    const rep = pickMove(pt, [], G, avoid);
+    if (rep && rep.name !== e.name) { done.push(e.name + " → " + rep.name); applySwap(e, rep); }
+  }
+  return done;
+}
 const optLabel = (list, k) => (list.find(x => x[0] === k) || [])[1] || "";
 const goalName = k => optLabel(GOALS, k) || k;
 const bodyW = p => imperial() ? p.weightKg * 2.20462 : p.weightKg;
@@ -953,6 +1057,8 @@ function skillEx(k, p) {
     : pull < 4 ? [{ name: "Chest to bar pull-ups", sets: 5, reps: "2-4", note: "Pull hard and fast; chest touches the bar." }, { name: "Dips", sets: 3, reps: "8-12", note: "Parallel bars or rings." }]
     : [{ name: "Muscle-up transitions", sets: 5, reps: "3", note: "Low bar or rings, feet on the floor. Drill the turn over the bar." }, { name: "Muscle-ups", sets: 5, reps: "1-2", note: "Fresh singles. Stop when they get ugly." }];
   if (k === "pullup") return [{ name: "Dead hang", sets: 3, reps: "20-40", unit: "s" }, { name: "Scapular pull-ups", sets: 3, reps: "6-10", note: "Arms straight. Pull your shoulders down and back." }];
+  // kipping work follows the pull-up level in Settings, so it moves up with you
+  if (k === "kipping") { const lv = LEVELS[levelFor(p)]; return p.limits.includes("shoulders") ? [] : [{ slot: "kip", ...lv.kip }, { slot: "ttb", ...lv.ttb }]; }
   return [];
 }
 const SPLITS = {
@@ -971,12 +1077,22 @@ function finisherWod(p) {
   if (p.equip === "gym") return soft ? "12 min, as many rounds as you can:\n10 cal bike\n10 kettlebell deadlifts\n20 s plank" : "4 rounds:\n250 m row\n10 kettlebell swings\n10 push-ups\nRest 1 min";
   return soft ? "12 min EMOM:\nOdd minutes: 40 s fast step-ups\nEven minutes: 30 s plank" : "12 min EMOM:\nOdd minutes: 10 burpees\nEven minutes: 30 s plank";
 }
+// equipment, pull-up level and swaps for what the gym doesn't have
+function withGear(plan, p) {
+  const G = new Set(gearOf(p));
+  plan.gear = [...G]; plan.level = levelFor(p);
+  fitPlanToGear(plan, G, new Set(p.avoid || []));
+  return plan;
+}
 function buildPlan(p) {
+  if (p.focus === "upper" && p.days <= 4) return withGear(buildUpper(p), p);
   const lib = exLib(p), g = p.goals, md = planMode(p), newbie = p.experience === "new", older = p.age >= 50;
   const R = { strength: { main: newbie ? [3, "5", 150] : [5, "3-5", 180], acc: [3, "8-10", 90] }, muscle: { main: newbie ? [3, "8-10", 120] : [4, "6-10", 120], acc: [3, "10-15", 60] },
     fitness: { main: [3, "8-12", 90], acc: [3, "12-15", 60] }, skill: { main: [3, "6-10", 120], acc: [3, "10-12", 60] } }[md];
   const focus = new Set(g.flatMap(k => FOCUS[k] || [])), budget = Math.max(3, Math.round(p.minutes / 11));
-  const engine = g.includes("fitness") ? "all" : p.weak.includes("engine") ? "some" : "";
+  const engine = p.metcon === false ? "" : g.includes("fitness") ? "all" : p.weak.includes("engine") || p.metcon ? "some" : "";
+  // a focus keeps the other half of the body to one exercise a day (two on its own days)
+  const maint = p.focus === "upper" ? ["legs"] : p.focus === "lower" ? ["push", "pull"] : [];
   const days = SPLITS[p.days].map(([name, type, pats], di) => {
     const out = [], add = (e, block) => { if (e && !out.some(x => x.name === e.name)) out.push({ id: uid(), ...e, ...(block ? { block } : {}) }); };
     const sk = g.filter(k => SKILL_SIDE[k] && (type === "full" || type === "upper" || type === SKILL_SIDE[k])).flatMap(k => skillEx(k, p));
@@ -990,8 +1106,11 @@ function buildPlan(p) {
     // pull-up goals: the pull-up work goes first
     if ((g.includes("pullup") || g.includes("muscleup")) && list.includes("vpull")) list.splice(0, 0, ...list.splice(list.indexOf("vpull"), 1));
     let n = 0;
+    const per = {}, cap = a => type === a || (type === "lower" && a === "legs") || (type === "upper" && a !== "legs") ? 2 : 1;
     for (const pt of list) {
       const base = lib[pt]; if (n >= room) break; if (!base) continue;
+      const ar = AREA_OF[pt];
+      if (maint.includes(ar)) { if ((per[ar] || 0) >= cap(ar)) continue; per[ar] = (per[ar] || 0) + 1; }
       const main = !!base.main && n < 2, [s, r, rest] = main ? R.main : R.acc;
       const e = { name: base.name, sets: base.sets || s, reps: base.reps || r, rest: (base.rest || rest) + (older ? 30 : 0) };
       if (base.unit) e.unit = base.unit;
@@ -1002,18 +1121,112 @@ function buildPlan(p) {
     }
     if (fin) add({ kind: "metcon", name: "Finisher", wod: finisherWod(p) }, "Conditioning");
     if (p.weak.includes("mobility") && !p.sports.includes("yoga")) add({ kind: "info", name: "Mobility, 8 min", note: "Hips, hamstrings, shoulders and upper back. Easy holds of 30–45 s each." }, "Cool-down");
-    if (out.some(x => x.block)) for (const x of out) if (!x.block) x.block = "Strength";
+    out.unshift({ id: uid(), ...warmUp(type, p), block: "Warm-up" });
+    for (const x of out) if (!x.block) x.block = "Strength";
     return { id: uid(), name, exercises: out };
   });
-  return { days, weeklyTarget: p.days, rules: planRules(p), why: planWhy(p, md), goalKeys: g.slice() };
+  return withGear({ days, weeklyTarget: p.days, rules: planRules(p), why: planWhy(p, md), goalKeys: g.slice() }, p);
 }
+function warmUp(type, p) {
+  const long = p.age >= 50 || p.limits.length;
+  return type === "lower" ? { kind: "info", name: "Bike + leg swings", reps: long ? "10 min" : "6 min", note: "Easy pace, then 10 leg swings each way and 10 bodyweight squats." }
+    : { kind: "info", name: "Row or bike + shoulder prep", reps: long ? "10 min" : "8 min", note: "Easy pace, then band pull-aparts, scap pull-ups and light shoulder external rotation." };
+}
+
+// upper body first, legs kept strong with one lift a day: a heavy day, a skill (gymnastics) day with a metcon, and a volume day
+function buildUpper(p) {
+  const G = new Set(gearOf(p)), L = new Set(p.limits), older = p.age >= 50, n = p.days, u = units();
+  const kip = p.goals.includes("kipping") && G.has("bar") && !L.has("shoulders"), met = metconOn(p), lv = LEVELS[levelFor(p)];
+  const avoid = new Set([...(L.has("shoulders") ? ["Overhead press", "Dips", "Ring dips", "Bench dips", "Kettlebell press", "Pike push-ups"] : []),
+    ...(L.has("back") ? ["Back squat", "Front squat", "Barbell row", "Deadlift", "Romanian deadlift", "Sit-ups"] : []),
+    ...(L.has("knees") ? ["Back squat", "Front squat", "Bulgarian split squat", "Walking lunges", "Pistol squats"] : []), ...(L.has("wrists") ? ["Archer push-ups"] : []), ...(p.avoid || [])]);
+  // the template's note belongs to its first choice; a swapped exercise brings its own
+  const ex = (pt, prefs, sets, reps, rest, note, block) => {
+    const m = pickMove(pt, prefs, G, avoid); if (!m) return null;
+    const e = { name: m.name, sets, reps, rest: rest + (older ? 30 : 0), block };
+    const nt = m.name === prefs[0] ? note : m.note; if (nt) e.note = nt;
+    if (/^each|one side/i.test(m.note || "") && !/side|max/.test(reps)) e.reps = reps + " / side";
+    if (m.unit) e.unit = m.unit;
+    return e;
+  };
+  const info = (name, reps, note, block) => ({ kind: "info", name, sets: 0, reps, note, block });
+  const metcon = (name, wod, note, block) => ({ kind: "metcon", name, sets: 0, reps: "", wod, note, block });
+  const slot = (k, block) => ({ slot: k, ...lv[k], block });
+  const squatTo = G.has("wallball") ? "wall balls" : "air squats", pullW = kip ? "{pull}" : p.pull >= 2 ? "pull-ups" : G.has("rings") ? "ring rows" : "jumping pull-ups";
+  const skill = kip ? [slot("kip", "Skill"), slot("ttb", "Skill")]
+    : p.goals.filter(k => SKILL_SIDE[k] && k !== "kipping").flatMap(k => skillEx(k, p)).slice(0, 2).map(e => ({ rest: 90, ...e, block: "Skill" }));
+  const hinge = L.has("back") ? ["Hip thrust", "Dumbbell hip thrust", "Glute bridge"] : ["Romanian deadlift", "Dumbbell Romanian deadlift", "Kettlebell deadlift", "Single-leg hip thrust"];
+  const A = { name: "Day A · Heavy Push & Pull", note: "Strength day. Long rests, heavy compounds.", ex: [
+    info("Row or bike + shoulder prep", "8 min", "Band pull-aparts, scap pull-ups, light shoulder external rotation.", "Warm-up"),
+    ex("hpush", upperPress(), 4, "5-6", 150, p.experience === "new" ? "Start light and leave 3 reps in the tank." : "Last rep hard but clean.", "Strength"),
+    G.has("bar") ? slot("strict", "Strength") : ex("vpull", ["Lat pulldown"], 4, "6-8", 120, "", "Strength"),
+    ex("vpush", ["Overhead press", "Dumbbell shoulder press", "Kettlebell press", "Landmine press", "Half-kneeling one-arm press", "Incline pike push-ups"], 3, "6-8", 120, "Strict press, glutes tight.", "Strength"),
+    ex("hpull", ["Dumbbell row", "Barbell row", "Seated cable row", "Ring rows", "Inverted rows"], 3, "8-10", 90, "Pause at the hip.", "Strength"),
+    ex("squat", ["Back squat", "Goblet squat", "Goblet box squat", "Box squats"], 3, "5-8", 120, "Moderate, not to failure. Heels on a small plate if your ankles limit depth.", "Legs & core"),
+    ex("carry", ["Farmer carries", "Suitcase carry", "Dead hangs"], 3, "30-40", 90, "Heavy, tall posture, short quick steps. Trains grip, trunk and legs.", "Legs & core"),
+    ex("triceps", ["Triceps pushdown", "Overhead triceps extension", "Skull crushers", "Diamond push-ups"], 3, "10-12", 60, "Superset with curls.", "Arms & shoulders"),
+    ex("biceps", ["Dumbbell biceps curls", "Biceps curl", "Cable curl", "Chin-ups"], 3, "10-12", 60, "", "Arms & shoulders"),
+    ex("reardelt", ["Face pulls", "Reverse dumbbell fly", "Band pull-aparts"], 3, "15", 60, "Shoulder health. Pull to the eyes, thumbs back.", "Arms & shoulders")] };
+  const B = { name: "Day B · " + (kip ? "Gymnastics & Metcon" : met ? "Bodyweight & Metcon" : "Bodyweight & Shoulders"), note: kip ? "CrossFit day. Skill when fresh, then a short hard piece." : "Lighter day: bodyweight strength and shoulder care.", ex: [
+    info("Overhead mobility", "2 rounds", "Bench T-spine extension 10 reps · banded lat stretch 30 s / side · wall slides 10 reps." + (kip ? " Opens the hollow and arch positions for the kip." : ""), "Warm-up"),
+    kip ? info("Hang, kip swings, hollow holds", "8 min", "3 rounds: 20 s hang, 8 kip swings, 20 s hollow hold, 10 air squats.", "Warm-up") : null,
+    ...skill,
+    ex("dips", ["Dips", "Ring dips", "Bench dips", "Close-grip push-ups"], 4, "6-10", 120, "Add weight once 4 × 10 is easy.", "Strength"),
+    ex("vpull", p.pull >= 3 ? ["Lat pulldown", "Chest to bar pull-ups", "Strict pull-ups"] : ["Lat pulldown", "Band-assisted pull-ups"], 3, p.pull >= 3 && !(G.has("cables") || G.has("machines")) ? "5-8" : "10-12", 90, "Controlled. Extra pulling volume without fatigue from the bar.", "Strength"),
+    n === 2 ? ex("hinge", hinge, 3, "8-10", 120, "Hamstrings and glutes. Moderate.", "Legs") : null,
+    met ? metcon("AMRAP 12", `5 ${pullW}\n8 ${kip ? "{ttb}" : "sit-ups"}\n10 push-ups\n12 ${squatTo}`, "Pick a pace you can hold. Write down rounds + reps.", "Metcon") : null,
+    G.has("bar") ? ex("carry", ["Dead hangs"], 2, "max", 90, "Full grip, shoulders active. Log your longer hang." + (kip ? " Grip usually limits toes to bar and kipping before the lats do." : ""), "Grip & shoulder care") : null,
+    ex("lateral", ["Lateral raises", "Cable lateral raise", "Prone Y-raises"], 3, "12-15", 60, "Light, slow on the way down.", "Grip & shoulder care"),
+    ex("extrot", ["Shoulder external rotation", "Band external rotation", "Side-lying dumbbell external rotation"], 2, "15", 45, "Cable or band.", "Grip & shoulder care")] };
+  const C = { name: "Day C · Volume Upper & Legs", note: "Hypertrophy day. Moderate weights, more reps, plus a posterior chain lift.", ex: [
+    info("Bike + band work", "8 min", "Easy pace, then 2 × 15 band pull-aparts and 2 × 10 push-ups.", "Warm-up"),
+    G.has("bar") ? { name: "Strict pull-ups (volume)", sets: 3, reps: "max −1", rest: 120 + (older ? 30 : 0), note: p.pull >= 2 ? "Strict. Stop one rep before failure." : "Band-assisted. Stop one rep before failure.", block: "Main" } : ex("vpull", ["Lat pulldown"], 3, "10-12", 90, "", "Main"),
+    ex("incpush", ["Incline bench press", "Incline dumbbell press", "Feet-elevated push-ups"], 3, "8-10", 120, "Lighter than Day A.", "Main"),
+    ex("hpull", ["Machine row", "Seated cable row", "Chest-supported row", "One-arm dumbbell row", "Ring rows", "Inverted rows"], 3, "10-12", 90, "Squeeze 1 s at the chest.", "Main"),
+    ex("hinge", hinge, 3, "8-10", 120, "Hamstrings and glutes. Moderate.", "Legs"),
+    ex("fly", ["Pec fly (butterfly machine)", "Cable fly", "Dumbbell fly", "Deficit push-ups"], 3, "12-15", 60, "Full stretch, slow.", "Accessories"),
+    ex("triceps", ["Overhead triceps extension", "Skull crushers", "Diamond push-ups"], 3, "12", 60, "Superset with curls.", "Accessories"),
+    ex("biceps", ["Barbell curls", "Dumbbell curl", "Cable curl", "Chin-ups"], 3, "10", 60, "", "Accessories"),
+    ex("core", G.has("ghd") ? ["GHD sit-ups", "Sit-ups"] : ["Sit-ups", "Hanging knee raises"], 3, "15", 45, "", "Accessories"),
+    met ? metcon("For time · 21-15-9", `${G.has("dumbbells") ? "Dumbbell push press" : G.has("kettlebells") ? "Kettlebell push press" : "Push-ups"}\n${kip ? "{ttb}" : "V-ups"}\n(cap 8 min)`, "Short and fast.", "Finisher") : null] };
+  const D = { name: "Day D · Upper Pump", note: "Moderate weights, short rests, one leg lift.", ex: [
+    info("Row or bike + shoulder prep", "8 min", "Easy pace, then band pull-aparts and 2 × 10 push-ups.", "Warm-up"),
+    ex("vpush", ["Dumbbell shoulder press", "Kettlebell press", "Machine shoulder press", "Pike push-ups"], 3, "8-12", 90, "", "Main"),
+    ex("hpush", ["Dumbbell bench press", "Machine chest press", "Push-ups"], 3, "10-12", 90, "", "Main"),
+    ex("biceps", ["Chin-ups", "Hammer curls"], 3, "6-10", 90, "", "Main"),
+    ex("single", L.has("knees") ? ["Step-ups"] : ["Bulgarian split squat", "Walking lunges", "Step-ups"], 3, "8-10", 90, "", "Legs"),
+    ex("lateral", ["Cable lateral raise", "Lateral raises", "Prone Y-raises"], 3, "12-15", 60, "", "Accessories"),
+    ex("reardelt", ["Reverse dumbbell fly", "Face pulls", "Band pull-aparts"], 3, "15", 60, "", "Accessories"),
+    met ? metcon("EMOM 12", `Odd minutes: 12 ${G.has("rower") ? "cal row or bike" : "burpees"}\nEven minutes: 30 s hollow hold`, "Steady pace, the same every minute.", "Finisher") : null] };
+  // shorter workouts drop accessories from the end; warm-up, skill work and metcons stay
+  const room = Math.max(5, Math.round(p.minutes / 7));
+  const fit = list => { list = list.filter(Boolean); for (let i = list.length - 1; i >= 0 && list.filter(e => !e.kind).length > room; i--) if (!list[i].kind && !list[i].slot && /Accessories|Arms|Grip|Legs & core/.test(list[i].block)) list.splice(i, 1); return list; };
+  const days = [A, B, C, D].slice(0, n).map(d => ({ id: uid(), name: d.name, note: d.note, exercises: fit(d.ex).map(e => ({ id: uid(), ...e })) }));
+  const R = [`Strength lifts: when you hit the top of the rep range on every set, add ${u === "lb" ? "5 lb" : "2.5 kg"} next time.`];
+  if (p.experience === "new" || p.experience === "under1") R.unshift("First two weeks: pick weights that leave 3 reps in the tank and learn the movements.");
+  if (kip) R.push("Strict before kipping, always. Kipping is a skill on top of strength, not a replacement for it.", "Move up a pull-up level when you can do the current level's sets with clean form two sessions in a row. The level is in Settings.");
+  R.push("Keep 1–2 reps in reserve on accessories." + (met ? " Metcons are hard but stop when form breaks." : ""), "Every 6th week: same exercises, half the sets (deload). Do the Benchmarks session that week in place of one regular day.");
+  const W = [`${n} days a week, about ${p.minutes} minutes each: ${andJoin(days.map(d => d.name.split(" · ")[1].toLowerCase()))}.`,
+    "Upper body comes first. Legs get one lift a day, enough to keep them strong."];
+  if (kip) W.push(`Kipping pull-ups and toes to bar follow your pull-up level (${lv.label.split(" · ")[1]}), set from your answers. Change it in Settings as you improve.`);
+  else if (skill.length) W.push(`${andJoin(p.goals.filter(k => SKILL_SIDE[k]).map(goalName))} practice comes first on Day B while you're fresh.`);
+  if (met) W.push("Short metcons keep your engine going without taking over the week.");
+  const miss = (p.missing || []).filter(k => (GEAR_BASE[p.equip] || []).includes(k));
+  if (miss.length) W.push(`No ${orJoin(lowList(GEAR, miss))} in your gym, so the plan uses other exercises. Swap any exercise under Plan.`);
+  if (p.limits.length) W.push(`Adjusted for your ${andJoin(lowList(LIMITS, p.limits))}: swapped exercises and pain-free ranges. If something hurts, get it checked by a physio or doctor.`);
+  if (older) W.push("Longer rests between sets. Warm up for 10 minutes before you start.");
+  return { days, weeklyTarget: n, rules: R, why: W, goalKeys: p.goals.slice() };
+}
+// the main press, shared with the benchmarks so both use the same name
+const upperPress = () => ["Bench press", "Dumbbell bench press", "Dumbbell floor press", "Machine chest press", "Push-ups"];
 function planRules(p) {
   const u = units(), R = [];
   if (p.experience === "new" || p.experience === "under1") R.push("First two weeks: pick weights that leave 3 reps in the tank and learn the movements.");
   if (p.equip !== "bw") R.push(`When every set reaches the top of the rep range, add weight next time: ${u === "lb" ? "5 lb" : "2.5 kg"} on upper-body lifts, ${u === "lb" ? "10 lb" : "5 kg"} on legs.`);
   R.push("Bodyweight exercises: add reps until you reach the top of the range, then move to the harder version.");
   if (p.goals.some(k => SKILL_SIDE[k])) R.push("Skill work comes first. Stop a set when your form breaks.");
-  R.push("Test your benchmarks every 6 weeks on the Benchmarks day. Lift Log reminds you.");
+  if (p.goals.includes("kipping")) R.push("Strict before kipping, always. Move up a pull-up level in Settings when the current sets feel clean two sessions in a row.");
+  R.push("Every 6th week: same exercises, half the sets (deload).", "Test your benchmarks every 6 weeks on the Benchmarks day. Lift Log reminds you.");
   return R;
 }
 function planWhy(p, md) {
@@ -1035,6 +1248,11 @@ function planWhy(p, md) {
   if (p.age >= 50) W.push("Longer rests between sets. Warm up for 10 minutes before you start.");
   if (p.equip === "gym" && p.goals.some(k => k === "strength" || k === "muscle")) W.push(`Strength milestones are set against your body weight (${fmt(bodyW(p), 0)} ${units()}).`);
   if (p.equip === "bw") W.push("Bodyweight only: you need a pull-up bar, a floor and a wall.");
+  if (p.focus === "upper") W.push("Upper body first: legs get one exercise a day, enough to keep them strong.");
+  if (p.focus === "lower") W.push("Lower body first: upper body gets one push and one pull a day to keep it strong.");
+  if (p.metcon === false) W.push("No metcons, as you asked.");
+  const miss = (p.missing || []).filter(k => (GEAR_BASE[p.equip] || []).includes(k));
+  if (miss.length) W.push(`No ${orJoin(lowList(GEAR, miss))} in your gym, so the plan uses other exercises. Swap any exercise under Plan.`);
   return W;
 }
 // milestone ladders start above what the athlete can already do; exercise names match the plan so they tick themselves
@@ -1046,12 +1264,13 @@ function goalMilestones(k, p) {
   const pulls = (t) => reps("Strict pull-ups", pe, t, "strict pull-up", "strict pull-ups"), pushes = t => reps("Push-ups", pu, t, "push-up", "push-ups");
   let ms = [];
   if ((k === "strength" || k === "muscle") && p.equip === "gym") {
-    const L = { s: lib.squat.name === "Back squat" && "Back squat", b: "Bench press", d: lib.hinge.name === "Deadlift" && "Deadlift" };
+    // upper body first: only the press has milestones, the legs are kept, not pushed
+    const up = p.focus === "upper" && p.days <= 4, L = { s: !up && lib.squat.name === "Back squat" && "Back squat", b: "Bench press", d: !up && lib.hinge.name === "Deadlift" && "Deadlift" };
     const start = { new: { s: 0, b: 0, d: 0 }, under1: { s: .75, b: .5, d: 1 }, "1to3": { s: 1, b: .75, d: 1.25 }, "3plus": { s: 1.25, b: 1, d: 1.5 } }[p.experience];
     const steps = k === "strength" ? [["s", .75], ["b", .5], ["d", 1], ["s", 1], ["b", .75], ["d", 1.25], ["s", 1.25], ["b", 1], ["d", 1.5], ["s", 1.5], ["b", 1.25], ["d", 2], ["s", 2]]
       : [["b", .5], ["s", .75], ["b", .75], ["s", 1], ["b", 1], ["s", 1.25], ["b", 1.25]];
     const lifts = steps.filter(([l, x]) => L[l] && x > start[l]).map(([l, x]) => lift(L[l], x));
-    ms = k === "strength" ? lifts : interleave(lifts, pulls([5, 10, 15]));
+    ms = k === "strength" && !up ? lifts : interleave(lifts, pulls([5, 10, 15, 20]));
   } else if (k === "strength" || k === "muscle") {
     const legs = lib.squat.name === "Pistol squats" ? [M("First pistol squat on each leg", "Pistol squats", 1, "r"), M("5 pistol squats on each leg", "Pistol squats", 5, "r")] : lib.squat.name === "Bodyweight squats" ? [M("50 bodyweight squats unbroken", "Bodyweight squats", 50, "r")] : [];
     ms = interleave(pulls([1, 3, 5, 8, 10, 12, 15, 20]).slice(0, 2), pushes([10, 20, 30, 40, 50]).slice(0, 2), legs);
@@ -1060,14 +1279,20 @@ function goalMilestones(k, p) {
   else if (k === "muscleup") ms = [...pulls([5, 10]), M("10 dips", "Dips", 10, "r"), ...(p.pull < 4 ? [M("5 chest-to-bar pull-ups", "Chest to bar pull-ups", 5, "r")] : []), M("First muscle-up", "Muscle-ups", 1, "r"), M("3 unbroken muscle-ups", "Muscle-ups", 3, "r")];
   else if (k === "handstand") ms = [[1, M("30 s wall handstand hold", "Wall handstand hold", 30, "s")], [2, M("60 s wall handstand hold", "Wall handstand hold", 60, "s")], [2, M("10 s freestanding handstand", "Freestanding handstand hold", 10, "s")], [3, M("30 s freestanding handstand", "Freestanding handstand hold", 30, "s")], [3, M("First 2 m handstand walk", "Handstand walk", 2, "m")], [9, M("5 m handstand walk", "Handstand walk", 5, "m")], [9, M("10 m unbroken handstand walk", "Handstand walk", 10, "m")]].filter(([lv]) => hs < lv).map(x => x[1]);
   else if (k === "hspu") { const lv = p.push >= 2 && hs >= 1 ? (p.push >= 3 ? 2 : 1) : 0; ms = [[1, M("10 pike push-ups", "Pike push-ups", 10, "r")], [1, M("5 box pike push-ups", "Box pike push-ups", 5, "r")], [2, M("3 slow handstand push-up negatives", "Handstand push-up negatives", 3, "r")], [9, M("First strict handstand push-up", "Strict handstand push-ups", 1, "r")], [9, M("5 strict handstand push-ups", "Strict handstand push-ups", 5, "r")]].filter(([l]) => lv < l).map(x => x[1]); }
+  else if (k === "kipping") ms = [[1, M("8 kipping knees to chest", "Kipping knees to chest", 8, "r")], [2, M("5 linked kipping pull-ups", "Kipping pull-ups", 5, "r")], [2, M("First toes to bar", "Toes to bar", 1, "r")],
+    [3, M("10 unbroken kipping pull-ups", "Kipping pull-ups", 10, "r")], [3, M("5 unbroken toes to bar", "Toes to bar", 5, "r")], [9, M("10 unbroken toes to bar", "Toes to bar", 10, "r")], [9, M("5 chest to bar", "Chest to bar", 5, "r")]].filter(([lv]) => (p.kip || 0) < lv).map(x => x[1]);
   return ms.slice(0, 6);
 }
 // benchmarks: the tests that show progress toward the chosen goals, at most five
 function buildBench(p) {
   const lib = exLib(p), out = [], add = (name, unit) => { if (!out.some(b => b.name === name)) out.push({ id: uid(), name, unit }); };
   const pullB = () => p.pull ? add("Strict pull-ups", "reps") : add("Dead hang", "s");
+  // upper body first: the press and pull-ups are tested, the legs aren't
+  if (p.focus === "upper" && p.days <= 4) { const m = pickMove("hpush", upperPress(), new Set(gearOf(p))); if (m) add(m.name, m.need ? "" : "reps"); pullB(); }
   for (const k of p.goals) {
-    if ((k === "strength" || k === "muscle") && p.equip === "gym") { add(lib.squat.name, ""); add(lib.hpush.name, ""); if (k === "strength") add(lib.hinge.name, ""); else pullB(); }
+    if (k === "kipping") add((p.kip || 0) >= 2 ? "Toes to bar" : "Hanging knee raises", "reps");
+    else if ((k === "strength" || k === "muscle") && p.focus === "upper" && p.days <= 4) continue;
+    else if ((k === "strength" || k === "muscle") && p.equip === "gym") { add(lib.squat.name, ""); add(lib.hpush.name, ""); if (k === "strength") add(lib.hinge.name, ""); else pullB(); }
     else if (k === "strength" || k === "muscle") { pullB(); add("Push-ups", "reps"); }
     else if (k === "fitness") { add("Push-ups", "reps"); pullB(); add("Plank", "s"); }
     else if (k === "pullup") { add("Dead hang", "s"); add("Strict pull-ups", "reps"); }
@@ -1086,8 +1311,12 @@ function profileLines(p) {
     `Now: ${PULL_LV[p.pull]} pull-ups, ${PUSH_LV[p.push]} push-ups, handstand ${HS_LV[p.hs].toLowerCase()}`,
     p.strong.length ? "Strong at: " + lc(AREAS, p.strong) : "",
     p.weak.length ? "Wants to improve: " + lc(AREAS, p.weak) : "",
-    `${p.days} days a week · ${p.minutes} min · ${optLabel(EQUIP, p.equip).toLowerCase()}`,
-    p.limits.length ? "Take care with: " + lc(LIMITS, p.limits) : ""
+    p.goals.includes("kipping") || p.sports.includes("crossfit") ? "Kipping: " + KIP_LV[p.kip || 0] : "",
+    `Focus: ${FOCUS_LV[p.focus || "balanced"]} · ${metconOn(p) ? "with metcons" : "no metcons"}`,
+    `${p.days} days a week · ${p.minutes} min · ${optLabel(EQUIP, p.equip).toLowerCase()}${(p.missing || []).length ? ", no " + orJoin(lowList(GEAR, p.missing)) : ""}`,
+    p.limits.length ? "Take care with: " + lc(LIMITS, p.limits) : "",
+    (p.avoid || []).length ? "Would rather skip: " + p.avoid.join(", ") : "",
+    ...(p.notes || []).map(n => "Note: " + n)
   ].filter(Boolean);
 }
 function setPlan(np) {
@@ -1108,12 +1337,12 @@ function syncGoals(p) {
   }
   memo.clear();
 }
-function applyProfile(p, usePlan) {
+function applyProfile(p, usePlan, plan) {
   const j = S.journey;
   j.profile = { ...clone(p), updatedAt: todayStr() };
   syncGoals(p);
   j.benchmarks = buildBench(p).map(b => j.benchmarks.find(x => same(x.name, b.name)) || b);
-  if (usePlan) setPlan(buildPlan(p));
+  if (usePlan) setPlan(plan || buildPlan(p));
   const ph = curPhase(); if (ph && !ph.focus) ph.focus = p.goals.map(goalName).join(", ");
   saveJourney(0);
 }
@@ -1123,6 +1352,7 @@ function applyProfile(p, usePlan) {
 const OB_EXP = { new: "new to training", under1: "under a year of training", "1to3": "1–3 years of training", "3plus": "3+ years of training" };
 const OB_HS = ["no handstand yet", "handstand against a wall", "freestanding handstand for a few seconds", "walks on hands"];
 const andJoin = a => a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+const orJoin = a => a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " or " + a[a.length - 1];
 const lowList = (list, ks) => ks.map(k => optLabel(list, k).toLowerCase());
 const upFirst = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 const OB_Q = [
@@ -1141,22 +1371,37 @@ const OB_Q = [
   { id: "goals", label: "Goals", fields: ["goals"], need: ["goals"],
     ask: "What do you want to achieve with your training?",
     sum: p => andJoin(p.goals.map(k => goalName(k).toLowerCase())) },
+  { id: "gymn", label: "Kipping", fields: ["kip"], need: ["kip"], when: p => p.goals.includes("kipping") || p.sports.includes("crossfit"),
+    ask: "How far along is your kipping? For example: not yet, working on the swing, linked kipping pull-ups, or toes to bar.",
+    sum: p => KIP_LV[p.kip || 0] },
+  { id: "style", label: "Focus", fields: ["focus", "metcon"], need: ["focus"],
+    ask: "Should your whole body get the same attention, or do you want upper or lower body first? And do you want short, hard conditioning pieces (metcons) in your workouts?",
+    sum: p => `${FOCUS_LV[p.focus || "balanced"]}, ${metconOn(p) ? "with metcons" : "no metcons"}` },
   { id: "week", label: "Your week", fields: ["days", "minutes"], need: ["days", "minutes"],
     ask: "How many days a week can you train, and how long can a workout be?",
     sum: p => `${p.days} days a week, ${p.minutes} min each` },
-  { id: "equip", label: "Equipment", fields: ["equip"], need: ["equip"],
+  { id: "equip", label: "Equipment", fields: ["equip", "have"], need: ["equip"],
     ask: "Where do you train, and what equipment do you have there?",
     sum: p => optLabel(EQUIP, p.equip).toLowerCase() },
-  { id: "limits", label: "Take care with", fields: ["limits"], need: [], pre: "Last one. ",
+  { id: "gear", label: "Missing", fields: ["missing", "have"], need: [], when: p => !!p.equip && p.equip !== "bw",
+    ask: "Is anything missing there that I shouldn't plan with? For example no rower, no dip bars, no rings or no cable machine.",
+    sum: p => (p.missing || []).length ? "no " + orJoin(lowList(GEAR, p.missing)) : "nothing missing" },
+  { id: "limits", label: "Take care with", fields: ["limits"], need: [],
     ask: "Is anything hurting or holding you back, like an old injury?",
-    sum: p => p.limits.length ? andJoin(lowList(LIMITS, p.limits)) : "nothing" }
+    sum: p => p.limits.length ? andJoin(lowList(LIMITS, p.limits)) : "nothing" },
+  { id: "extra", label: "Also", fields: ["notes", "avoid"], need: [], pre: "Last one. ",
+    ask: "Anything else I should know? What you enjoy, exercises you'd rather skip, how your week looks.",
+    sum: p => [(p.avoid || []).length ? "skip " + andJoin(p.avoid.map(x => x.toLowerCase())) : "", ...(p.notes || [])].filter(Boolean).join("; ") || "nothing else" }
 ];
 const OB_FOLLOW = { heightCm: "And how tall are you?", weightKg: "And how much do you weigh?", sports: "What sports or training have you done regularly?",
   experience: "How long have you trained with weights or your own bodyweight?", pull: "How many strict pull-ups can you do in one go?",
   push: "And how many push-ups in one go?", hs: "And can you hold a handstand?", goals: "What would you like to be able to do in a few months?",
-  days: "How many days a week can you train?", minutes: "And how long can one workout be?", equip: "What equipment can you use when you train?" };
+  days: "How many days a week can you train?", minutes: "And how long can one workout be?", equip: "What equipment can you use when you train?",
+  kip: "Can you do kipping pull-ups or toes to bar yet?", focus: "Whole body, or upper or lower body first?" };
 // a second miss on these takes a sensible default; you can change it in the recap
-const OB_DEF = { sports: ["none"], experience: "under1", pull: 0, push: 0, hs: 0, days: 3, minutes: 60, equip: "gym" };
+const OB_DEF = { sports: ["none"], experience: "under1", pull: 0, push: 0, hs: 0, days: 3, minutes: 60, equip: "gym", kip: 0, focus: "balanced" };
+// the questions that apply to these answers, in order
+const obQs = p => OB_Q.filter(q => !q.when || q.when(p));
 const OB_HINT = {
   heightCm: () => imperial() ? "Your height in feet and inches is enough, like 5 ft 10." : "Your height in centimetres is enough, like 178.",
   weightKg: () => `Your weight in ${units()} is enough, like ${imperial() ? 170 : 75}.`,
@@ -1262,7 +1507,7 @@ function obFeel(t) {
   return r;
 }
 
-const GOAL_KW = [["muscleup", /muscle[\s-]?ups?/], ["hspu", /handstand push|hand ?stand press|hspu/], ["handstand", /hand ?stand/], ["pullup", /pull[\s-]?ups?|chin[\s-]?ups?/],
+const GOAL_KW = [["kipping", /\bkip|toes? to bar|\bttb\b|chest to bar|c2b|butterfly|crossfit gymnastics/], ["muscleup", /muscle[\s-]?ups?/], ["hspu", /handstand push|hand ?stand press|hspu/], ["handstand", /hand ?stand/], ["pullup", /pull[\s-]?ups?|chin[\s-]?ups?/],
   ["muscle", /muscle|\bsize\b|bigger|bulk|hypertroph|\bmass\b|aesthetic|physique|\btone|look (?:good|better)|gain weight/],
   ["strength", /strong|strength|heav|squat|deadlift|bench|powerlift|lift more|1 ?rm/],
   ["fitness", /\bfit|condition|endurance|cardio|stamina|\blose|losing|\bfat\b|weight loss|health|lean|marathon|\brun|energy|\bshape\b/]];
@@ -1299,10 +1544,56 @@ function obLimits(t) {
   return { limits: Object.keys(LIM_KW).filter(k => LIM_KW[k].test(t)) };
 }
 
+function obStyle(t) {
+  const r = {};
+  for (const c of clauses(t)) if (/metcon|wod|conditioning|circuit|hiit|finisher|interval|cardio|sweat/.test(c)) r.metcon = !NEG.test(c) && !/\bskip\b|rather not|don't like|hate|without/.test(c);
+  if (/upper|chest|\barms\b|shoulders|torso/.test(t) && !/lower body first|legs first/.test(t)) r.focus = "upper";
+  else if (/lower|legs|glutes/.test(t) && /first|focus|more|priorit|mainly|most/.test(t)) r.focus = "lower";
+  else if (/whole|full|same|balanced|everything|equal|evenly|both|all of (?:it|me)/.test(t)) r.focus = "balanced";
+  return r;
+}
+function obKip(t) {
+  const not = re => new RegExp(`\\b(?:can't|cannot|not|no|never)\\b[^.,]{0,24}(?:${re})`).test(t);
+  if (/toes? to bar|\bttb\b|chest to bar|c2b|butterfly/.test(t) && !not("toes|ttb|chest to") && !/(?:working on|learning|practi[cs]ing) (?:my )?(?:toes|ttb|chest)/.test(t)) return { kip: 3 };
+  if (/kipping pull|kip(?:ping)? reps|linked|in a row|\bcan kip\b/.test(t) && !not("kip")) return { kip: 2 };
+  if (/swing|learning|practi[cs]|working on|starting|a bit/.test(t)) return { kip: 1 };
+  if (NEG.test(t)) return { kip: 0 };
+  return {};
+}
+function obHave(t) {
+  const have = Object.keys(GEAR_KW).filter(k => clauses(t).some(c => GEAR_KW[k].test(c) && !NEG.test(c) && !/without/.test(c)));
+  return have.length ? { have } : {};
+}
+// the gear question asks what's missing: items named are missing unless the clause says you have them
+function obGear(t) {
+  if (/^\W*(no|nope|nothing|none)\W*$|nothing(?:'s| is)? missing|everything|all there|got it all|have it all/.test(t)) return { missing: [] };
+  const miss = [], have = [];
+  for (const c of clauses(t)) for (const k of Object.keys(GEAR_KW)) if (GEAR_KW[k].test(c)) (/\b(?:have|got|there's|there is|has)\b/.test(c) && !NEG.test(c) ? have : miss).push(k);
+  return miss.length || have.length ? { missing: [...new Set(miss)], have: [...new Set(have)] } : {};
+}
+// exercises named in a "don't like / can't do" clause, matched to the exercise library
+const GENERIC_W = new Set(["press", "raise", "raises", "row", "rows", "curl", "curls", "fly", "hold", "extension", "rotation", "squat", "squats"]);
+function obExtra(t, text) {
+  const r = {};
+  if (!/^\W*(no|nope|nothing|none|not really|that's (?:it|all))\W*$/.test(t)) r.notes = [cstr(text, 160)];
+  const avoid = new Set();
+  // from the dislike word to the end of its sentence, so "I hate burpees and lunges" catches both
+  // it stops at "but", "love" or "enjoy"; a full name ("walking lunges") wins over its last word ("lunges")
+  for (const sn of t.split(/[.;!?\n]/)) {
+    const m = sn.match(/hate|don't like|do not like|dislike|rather not|can't do|cannot do|avoid|skip|no more/); if (!m) continue;
+    let c = sn.slice(m.index + m[0].length); const stop = c.search(/\b(?:but|love|enjoy|i like|happy with|fine with)\b/); if (stop >= 0) c = c.slice(0, stop);
+    const all = Object.values(MOVES).flat().map(x => x[0]), full = all.filter(n => c.includes(bareName(n)));
+    for (const n of full) avoid.add(n);
+    for (const n of all) { const w = bareName(n).split(" ").pop(); if (w.length >= 5 && !GENERIC_W.has(w) && c.includes(w) && !full.some(f => bareName(f).endsWith(w))) avoid.add(n); }
+  }
+  if (avoid.size) r.avoid = [...avoid];
+  return r;
+}
 function obLocal(id, text, p, only) {
   const t = obNorm(text);
   return id === "body" ? obBody(t, only) : id === "background" ? obBackground(t, p, only) : id === "now" ? obNow(t, only) : id === "feel" ? obFeel(t)
-    : id === "goals" ? obGoals(t) : id === "week" ? obWeek(t, only) : id === "equip" ? obEquip(t) : obLimits(t);
+    : id === "goals" ? obGoals(t) : id === "week" ? obWeek(t, only) : id === "equip" ? { ...obEquip(t), ...obHave(t) } : id === "gymn" ? obKip(t)
+    : id === "style" ? obStyle(t) : id === "gear" ? obGear(t) : id === "extra" ? obExtra(t, text) : obLimits(t);
 }
 
 // local or Claude's reading → profile values; Claude's reply is untrusted, so only known keys and sane numbers pass
@@ -1328,6 +1619,13 @@ function obClean(r, p) {
   if ((v = num("days", 1, 14)) != null) o.days = Math.min(6, Math.max(2, Math.round(v)));
   if ((v = num("minutes", 10, 300)) != null) o.minutes = [30, 45, 60, 75, 90].reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
   if (EQUIP.some(x => x[0] === r.equip)) o.equip = r.equip;
+  if (FOCUS_LV[r.focus]) o.focus = r.focus;
+  if (typeof r.metcon === "boolean") o.metcon = r.metcon;
+  if ((v = num("kip", 0, 3)) != null) o.kip = Math.round(v);
+  if ((v = keys("missing", GEAR))) o.missing = v;
+  if ((v = keys("have", GEAR))) o.have = v;
+  if (Array.isArray(r.avoid)) o.avoid = [...new Set(r.avoid.map(x => cstr(x, 60)).filter(Boolean))].slice(0, 8);
+  if (Array.isArray(r.notes)) o.notes = r.notes.map(x => cstr(x, 160)).filter(Boolean).slice(0, 6);
   return o;
 }
 const keyList = list => list.map(x => `"${x[0]}" (${x[1]})`).join(", ");
@@ -1341,7 +1639,13 @@ const OB_KEYS = {
   goals: `what they want to achieve, most important first, from: ${keyList(GOALS)}. Losing fat or general health counts as "fitness"`,
   days: "training days per week, a number", minutes: "minutes per workout, a number",
   equip: 'where they train: "gym" (barbells, racks, machines), "home" (dumbbells or kettlebells and a pull-up bar) or "bw" (bodyweight only)',
-  limits: `body parts that hurt or hold them back, from: ${keyList(LIMITS)}. [] if nothing does`
+  limits: `body parts that hurt or hold them back, from: ${keyList(LIMITS)}. [] if nothing does`,
+  kip: "kipping: 0 (not yet), 1 (working on the kip swing), 2 (linked kipping pull-ups), 3 (toes to bar or chest to bar)",
+  focus: '"balanced" (whole body the same), "upper" (upper body first, legs only kept strong) or "lower" (lower body first)',
+  metcon: "true if they want short conditioning pieces (metcons, WODs, finishers) in their workouts, false if not",
+  missing: `equipment their gym does NOT have, from: ${keyList(GEAR)}`, have: "equipment they say they have, from the same list",
+  avoid: "exercises they dislike or can't do, as a list of exercise names",
+  notes: "anything else worth remembering for their plan (what they enjoy, schedule, sport season), as a list of short sentences"
 };
 async function obClaude(q, asked, text, o) {
   const prompt = ["A strength training app is getting to know a new user in a short chat. Turn their answer into data.", "",
@@ -1353,19 +1657,164 @@ async function obClaude(q, asked, text, o) {
 }
 
 const needsOnb = () => S.planLoaded && S.journeyLoaded && S.sessionsLoaded && !!S.journey && !J().profile && !S.onbLater && !activeSession();
+const OB_EXTRA = { focus: "", metcon: null, kip: null, missing: [], have: [], avoid: [], notes: [] };
 function newOnb() {
-  const p = J().profile, o = { q: null, miss: null, tries: 0, edit: false, draft: "", busy: false, listening: false, usePlan: true, scroll: p ? null : "end", focus: false, log: [],
-    p: p ? clone(p) : { heightCm: null, weightKg: null, age: null, sports: [], experience: "", pull: null, push: null, hs: null, strong: [], weak: [], goals: [], days: null, minutes: null, equip: "", limits: [] } };
+  const p = J().profile, o = { q: null, miss: null, tries: 0, edit: false, draft: "", busy: false, listening: false, usePlan: true, scroll: p ? null : "end", focus: false, log: [], turns: 0,
+    p: p ? { ...OB_EXTRA, focus: "balanced", kip: 0, ...clone(p) } : { heightCm: null, weightKg: null, age: null, sports: [], experience: "", pull: null, push: null, hs: null, strong: [], weak: [], goals: [], days: null, minutes: null, equip: "", limits: [], ...clone(OB_EXTRA) } };
   if (p) o.log.push({ by: "app", text: "Here's what I know about you. Tap anything that has changed, and I'll update your plan." });
-  else {
+  else if (coachOn()) {
+    // Claude leads: open questions, follow-ups on what you say, then it fits the plan to you
+    o.q = "chat"; o.focus = matchMedia("(pointer: fine)").matches;
+    o.log.push({ by: "app", text: `Hi. I'm going to get to know you a bit, then build your plan, goals and benchmarks. Answer in your own words${SR ? ", typed or spoken" : ""}, as much or as little as you like.` },
+      { by: "app", text: "Tell me about yourself and your training so far. What have you done, and what made you want to start now?" });
+  } else {
     o.q = OB_Q[0].id; o.focus = matchMedia("(pointer: fine)").matches;
     o.log.push({ by: "app", text: `Hi. I'll ask you a few questions and build your plan, goals and benchmarks from your answers. Just answer in your own words${SR ? ", typed or spoken" : ""}.` }, { by: "app", text: OB_Q[0].pre + OB_Q[0].ask });
   }
   return o;
 }
+
+/* ---------- Claude's side of the dialogue ---------- */
+const obMissing = p => [...new Set(obQs(p).flatMap(q => q.need))].filter(k => !obHas(p[k]));
+// fields worth asking about once the needed ones are known
+const obOptional = p => ["age", "strong", "weak", "limits", "metcon", ...(p.equip && p.equip !== "bw" ? ["missing"] : []), ...(obQs(p).some(q => q.id === "gymn") ? ["kip"] : []), "avoid", "notes"].filter(k => !obHas(p[k]) && p[k] !== false);
+const obTranscript = o => o.log.map(m => (m.by === "app" ? "Lift Log: " : "Athlete: ") + m.text).join("\n");
+function obKnown(p) {
+  const out = {};
+  for (const [k, v] of Object.entries(p)) if (obHas(v) || v === false || v === 0) out[k] = v;
+  return JSON.stringify(out);
+}
+async function obClaudeTurn(o) {
+  const p = o.p, miss = obMissing(p), opt = obOptional(p);
+  const prompt = ["You are the coach inside Lift Log, a training app. You are getting to know a new athlete in a short chat, so the app can build their training plan, goals and benchmarks. Lead it the way a good coach runs a first meeting.", "",
+    "How to talk:",
+    "- One thing at a time; at most two closely related questions. Prefer open questions (\"Tell me about…\", \"What does … look like?\") over yes/no questions.",
+    "- When there is something worth reacting to, first react in one short sentence, then ask. Plain and warm. No exclamation marks, no emojis, no flattery. Under 60 words.",
+    "- Follow up on details that matter for a plan: an injury, a sport, a goal with a date, the gym and its equipment, what they enjoy or hate.",
+    "- Never ask for something already known. Their units: " + (imperial() ? "pounds, feet and inches" : "kilograms and centimetres") + ".",
+    `- Cover everything under "Still needed". Then, if not covered yet, ask one open question about what they enjoy or would rather skip. Then set "done" to true and say briefly that you have what you need.`, "",
+    "Known so far: " + obKnown(p),
+    "Still needed: " + (miss.length ? miss.map(k => `${k} (${OB_KEYS[k]})`).join("; ") : "nothing"),
+    "Worth finding out if it comes up: " + (opt.join(", ") || "nothing"), "",
+    "Fields you may fill from their answers (only what they said or made clear; leave out guesses):",
+    ...Object.keys(OB_KEYS).map(k => `- "${k}": ${OB_KEYS[k]}`), "",
+    "The chat so far:", obTranscript(o), "",
+    'Reply with only JSON: {"say":"your next message to them","profile":{only fields their answers give},"done":false}'].join("\n");
+  const ctl = o.ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 25000);
+  try { return await sampleFn.json(prompt, { signal: ctl.signal, cache: false }); } finally { clearTimeout(t); }
+}
+async function obChatSend(text) {
+  const o = S.onb;
+  o.log.push({ by: "me", text }); o.draft = ""; o.busy = true; o.scroll = "end"; o.turns++; render();
+  let r = null;
+  try { r = await obClaudeTurn(o); } catch (e) { if (COACH_OFF.includes(e && e.code)) S.coachOff = true; }
+  if (S.onb !== o) return;
+  o.busy = false; o.scroll = "end";
+  const say = r && typeof r === "object" ? cstr(r.say, 600) : "";
+  if (!say) {
+    // Claude is gone: carry on with the scripted questions where the answers are still missing
+    const qs = obQs(o.p), q = qs.find(x => x.need.some(k => !obHas(o.p[k]))) || qs[qs.length - 1];
+    o.q = q.id; o.log.push({ by: "app", text: "Let's go step by step. " + q.ask }); render(); return;
+  }
+  const got = obClean(r.profile, o.p), p = o.p;
+  for (const k of ["notes", "avoid", "have", "missing"]) if (got[k]) got[k] = [...new Set([...(p[k] || []), ...got[k]])].slice(0, 8);
+  Object.assign(p, got);
+  p.strong = p.strong.filter(x => !p.weak.includes(x)); p.goals = p.goals.slice(0, 2);
+  const miss = obMissing(p);
+  if (r.done === true && miss.length && o.turns < 16) o.log.push({ by: "app", text: OB_FOLLOW[miss[0]] || say });
+  else o.log.push({ by: "app", text: say });
+  if ((r.done === true && !miss.length) || o.turns >= 16) {
+    for (const k of miss) if (k in OB_DEF) p[k] = clone(OB_DEF[k]);
+    if (!obHas(p.focus)) p.focus = "balanced";
+    if (p.kip == null) p.kip = 0;
+    o.q = null; o.done = true; o.scroll = "recap";
+    o.log.push({ by: "app", text: "Here's what I've got, and the plan I built from it. Tap a line to change it." });
+  }
+  render();
+}
+
+// after the chat Claude fits the built plan to what you said: swaps, notes, a few edits; the structure stays
+function obTailor(o, p, base) {
+  if (!coachOn() || !o.done) return null;
+  const key = JSON.stringify(p);
+  if (!o.tl || o.tl.key !== key) {
+    if (o.tl && o.tl.ctl) o.tl.ctl.abort();
+    const tl = o.tl = { key, status: "busy", res: null, ctl: new AbortController() };
+    setTimeout(() => runTailor(o, tl, p, base), 0);
+  }
+  return o.tl;
+}
+async function runTailor(o, tl, p, base) {
+  const G = new Set(base.gear || gearOf(p)), u = units();
+  const lines = base.days.map(d => `- ${d.name}: ` + d.exercises.map(e => { const x = resolveEx(e); return x.kind === "info" ? `${x.name} (warm-up)` : x.kind === "metcon" ? `${x.name} (metcon: ${(x.wod || "").replace(/\n/g, ", ")})` : `${x.name} ${exTarget(x)}${x.unit ? " " + x.unit : ""}${e.slot ? " [level]" : ""}`; }).join("; "));
+  const prompt = ["You are the coach inside Lift Log. The app built a training plan from a new athlete's answers. Adjust it to what they told you in the chat, like a coach who listened:",
+    "swap exercises they dislike, can't do or have no equipment for; add a short note where something they said matters; change sets or reps only where their answers call for it.",
+    "Keep the structure: the days, warm-ups, metcons and the order of the blocks. Few changes are better than many; an empty list is fine when the plan already fits.",
+    "Exercises marked [level] follow their pull-up level and stay as they are.", "",
+    "About the athlete:", ...profileLines(p).map(l => "- " + l),
+    "Equipment they have: " + (andJoin(lowList(GEAR, [...G])) || "bodyweight only") + ". Plan only with that. Weights are in " + u + ".", "",
+    "The chat:", obTranscript(o), "",
+    "The plan:", ...lines, "",
+    'Reply with only JSON: {"summary":"1-3 sentences to the athlete on how this plan fits them and what you changed","changes":[{"op":"swap","day":"Day A","from":"exercise in the plan","to":"new exercise","note":"optional cue"},{"op":"edit","day":"Day B","name":"exercise","sets":3,"reps":"5-8","note":"optional"},{"op":"add","day":"Day C","after":"exercise in the plan","exercise":{"name":"...","sets":3,"reps":"10-12","rest":60,"note":"..."}},{"op":"remove","day":"Day A","name":"exercise"}]}'].join("\n");
+  try {
+    const r = await sampleFn.json(prompt, { signal: tl.ctl.signal, cache: false });
+    if (o.tl !== tl) return;
+    tl.res = r && typeof r === "object" ? { summary: cstr(r.summary, 500), changes: Array.isArray(r.changes) ? r.changes.slice(0, 12) : [] } : null;
+    tl.status = tl.res ? "done" : "failed";
+  } catch (e) {
+    if (o.tl !== tl) return;
+    if (COACH_OFF.includes(e && e.code)) S.coachOff = true;
+    tl.status = "failed";
+  }
+  if (S.onb === o) render();
+}
+// Claude's changes are untrusted: they only touch exercises that exist, with clamped numbers
+function applyTailor(plan, res) {
+  const changed = new Set(); if (!res) return changed;
+  const dayOf = n => { const k = norm(n); return k ? plan.days.find(d => norm(d.name) === k) || plan.days.find(d => norm(d.name).startsWith(k)) || null : null; };
+  const exOf = (d, n) => { const k = bareName(n); return k ? d.exercises.findIndex(e => !e.slot && bareName(resolveEx(e).name) === k) : -1; };
+  const setNums = (e, c) => {
+    const s = Math.round(Number(c.sets)), rest = Math.round(Number(c.rest));
+    if (s >= 1 && s <= 10) e.sets = s;
+    if (cstr(c.reps, 20)) e.reps = cstr(c.reps, 20);
+    if (rest > 0 && rest <= 600) e.rest = rest;
+    if (cstr(c.note, 160)) e.note = cstr(c.note, 160);
+  };
+  for (const c of res.changes) {
+    if (!c || typeof c !== "object") continue;
+    const d = dayOf(cstr(c.day, 60)); if (!d) continue;
+    if (c.op === "add") {
+      const x = c.exercise && typeof c.exercise === "object" ? c.exercise : {}, name = cstr(x.name, 60);
+      if (!name || d.exercises.length >= 14 || exOf(d, name) >= 0) continue;
+      let i = exOf(d, cstr(c.after, 60));
+      if (i < 0) { i = d.exercises.length - 1; while (i >= 0 && d.exercises[i].kind === "metcon") i--; }
+      const ref = d.exercises[i], m = moveBy(name), e = { id: uid(), name, sets: 3, reps: "8-10", block: ref && !ref.kind ? ref.block : "Accessories" };
+      setNums(e, x);
+      const un = m && m.unit || (["s", "m"].includes(x.unit) ? x.unit : ""); if (un) e.unit = un;
+      d.exercises.splice(i + 1, 0, e); changed.add(e.id); continue;
+    }
+    const i = exOf(d, cstr(c.op === "swap" ? c.from : c.name, 60)); if (i < 0) continue;
+    const e = d.exercises[i];
+    if (c.op === "remove") { if (!e.kind || e.kind === "metcon") d.exercises.splice(i, 1); continue; }
+    if (e.kind) continue;
+    if (c.op === "swap") { const to = cstr(c.to, 60); if (!to || exOf(d, to) >= 0) continue; const m = moveBy(to); applySwap(e, { name: m ? m.name : to, note: m && m.note, unit: m && m.unit }); if (cstr(c.note, 160)) e.note = cstr(c.note, 160); }
+    else if (c.op === "edit") setNums(e, c);
+    else continue;
+    changed.add(e.id);
+  }
+  return changed;
+}
+// the plan the recap shows and Start training saves: built from the answers, then Claude's changes
+function obPlan(o) {
+  const base = buildPlan(o.p), tl = obTailor(o, o.p, base);
+  const changed = tl && tl.status === "done" ? applyTailor(base, tl.res) : new Set();
+  if (tl && tl.status === "done" && tl.res.summary) base.why = [tl.res.summary, ...(base.why || [])];
+  return { plan: base, changed, tl };
+}
 async function obSend() {
   const o = S.onb, text = (o.draft || "").trim();
   if (!text || o.busy || !o.q) return;
+  if (o.q === "chat") return obChatSend(text);
   const q = OB_Q.find(x => x.id === o.q), asked = o.log.filter(m => m.by === "app").pop().text;
   o.log.push({ by: "me", text }); o.draft = ""; o.busy = true; o.scroll = "end"; render();
   let got = obClean(obLocal(q.id, text, o.p, o.miss), o.p);
@@ -1395,8 +1844,8 @@ function obReply(o, q, got) {
     say("I didn't catch that. " + OB_HINT[k](o.tries++)); return;
   }
   o.miss = null;
-  say((q.id === "feel" && !p.strong.length && !p.weak.length ? "Okay." : q.id === "limits" ? (p.limits.length ? `Got it. I'll go easy on your ${q.sum(p)}.` : "Good, nothing to work around.") : `Got it: ${q.sum(p)}.`) + extra);
-  const next = o.edit ? null : OB_Q[OB_Q.indexOf(q) + 1];
+  say((q.id === "feel" && !p.strong.length && !p.weak.length ? "Okay." : q.id === "limits" ? (p.limits.length ? `Got it. I'll go easy on your ${q.sum(p)}.` : "Good, nothing to work around.") : q.id === "extra" ? "Thanks, noted." : `Got it: ${q.sum(p)}.`) + extra);
+  const qs = obQs(p), next = o.edit ? null : qs[qs.indexOf(q) + 1];
   o.edit = false;
   if (next) { o.q = next.id; say((next.pre || "") + next.ask); return; }
   o.q = null; o.scroll = "recap";
@@ -1437,10 +1886,11 @@ function viewOnb() {
   if (o.q) return h + `<div class="composer"><div class="wrap"><textarea id="obin" data-a="obdraft" rows="1" aria-label="Your answer" enterkeyhint="send" placeholder="${o.listening ? "Listening…" : "Your answer"}">${esc(o.draft)}</textarea>`
     + (SR ? `<button class="round${o.listening ? " live" : ""}" data-a="oblisten" aria-label="${o.listening ? "Stop and send" : "Answer by voice"}" aria-pressed="${o.listening}">${ICON.mic}</button>` : "")
     + `<button class="round primary" data-a="obsend" aria-label="Send"${o.busy ? " disabled" : ""}>${ICON.send}</button></div></div>`;
-  const r = buildPlan(p), bs = buildBench(p);
-  return h + `<section class="card stack" data-recap><h2>Your profile</h2><ul class="recap">${OB_Q.map(q => `<li><button data-a="obedit" data-q="${q.id}"><span class="label">${q.label}</span><span>${esc(upFirst(q.sum(p)))}</span><em>Change</em></button></li>`).join("")}</ul></section>
-    <section class="card stack"><h2>Your plan</h2><ul class="rules">${r.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul></section>
-    <section class="card stack"><h2>Your week</h2>${r.days.map(d => `<div class="dday"><b>${esc(d.name)}</b><ul class="exlist">${d.exercises.map(e => `<li><span${e.kind ? ' class="muted"' : ""}>${esc(e.name)}</span><span class="tgt">${e.kind ? "" : esc(exTarget(e) + (e.unit ? " " + e.unit : ""))}</span></li>`).join("")}</ul></div>`).join("")}</section>
+  const { plan: r, changed, tl } = obPlan(o), bs = buildBench(p);
+  return h + `<section class="card stack" data-recap><h2>Your profile</h2><ul class="recap">${obQs(p).map(q => `<li><button data-a="obedit" data-q="${q.id}"><span class="label">${q.label}</span><span>${esc(upFirst(q.sum(p)))}</span><em>Change</em></button></li>`).join("")}</ul></section>
+    <section class="card stack"><h2>Your plan</h2>${tl && tl.status === "busy" ? `<p class="muted small" role="status" style="margin:0">Claude is fitting the plan to what you told it…</p>` : ""}<ul class="rules">${r.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul></section>
+    <section class="card stack"><h2>Your week</h2>${r.days.map(d => `<div class="dday"><b>${esc(d.name)}</b><ul class="exlist">${d.exercises.map(resolveEx).map(e => `<li><span${e.kind ? ' class="muted"' : ""}>${esc(e.name)}${changed.has(e.id) ? ' <span class="tag acc">Claude</span>' : ""}</span><span class="tgt">${e.kind ? "" : esc(exTarget(e) + (e.unit ? " " + e.unit : ""))}</span></li>`).join("")}</ul></div>`).join("")}
+    <p class="muted small" style="margin:0">Gym missing something? Tap Swap next to any exercise under Plan later.</p></section>
     <section class="card stack"><h2>Goals</h2>${p.goals.map(k => `<div class="dday"><b>${esc(goalName(k))}</b><ul class="rules">${goalMilestones(k, p).map(m => `<li>${esc(m.name)}</li>`).join("")}</ul></div>`).join("")}</section>
     <section class="card stack"><h2>Benchmarks</h2><p class="muted small" style="margin:0">Tested every 6 weeks, always the same, so you can see your progress.</p><ul class="exlist">${bs.map(b => `<li><span>${esc(b.name)}</span><span class="tgt">${benchUnit({ unit: b.unit })}</span></li>`).join("")}</ul>
     ${S.plan && S.plan.days.length ? `<label class="check"><input type="checkbox" data-a="obuseplan"${o.usePlan ? " checked" : ""}>Replace my current plan. You can restore the old one under Plan → Phases.</label>` : ""}</section>
@@ -1449,7 +1899,8 @@ function viewOnb() {
 function finishOnb() {
   const o = S.onb, first = !J().profile, hadPlan = !!(S.plan && S.plan.days.length);
   obStop();
-  applyProfile(o.p, o.usePlan || !hadPlan);
+  applyProfile(o.p, o.usePlan || !hadPlan, obPlan(o).plan);
+  if (o.tl && o.tl.ctl) o.tl.ctl.abort();
   S.onb = null; S.view = "train"; ls.set("liftlog.view", "train"); window.scrollTo(0, 0);
   toast(first ? "Your plan is ready." : o.usePlan || !hadPlan ? "Profile saved and plan rebuilt." : "Profile saved.");
 }
@@ -1550,7 +2001,7 @@ function editorHTML(s, live) {
       </div>`;
     });
     h += `</div><div class="exfoot"><div class="grp"><button class="linkbtn" data-a="addset" data-i="${i}">+ Add set</button>${ex.sets.length > 1 ? `<button class="linkbtn" style="color:var(--muted);margin-left:12px" data-a="delset" data-i="${i}">Remove last set</button>` : ""}</div>
-      <div class="grp">${i > 0 ? `<button class="iconbtn" style="border:0;background:none" data-a="exup" data-i="${i}" aria-label="Move up">${ICON.up}</button>` : ""}${rmBtn}</div></div></section>`;
+      <div class="grp"><button class="iconbtn" style="border:0;background:none" data-a="swapopen" data-i="${i}" aria-label="Swap ${esc(ex.name)}" aria-expanded="${!!(S.swap && S.swap.i === i)}">${ICON.swap}</button>${i > 0 ? `<button class="iconbtn" style="border:0;background:none" data-a="exup" data-i="${i}" aria-label="Move up">${ICON.up}</button>` : ""}${rmBtn}</div></div>${S.swap && S.swap.i === i ? swapHTML(ex, live) : ""}</section>`;
   });
   h += `<section class="card stack"><label class="label" for="addex-${s.id}">Add an exercise</label><div class="addex"><input id="addex-${s.id}" list="exnames" placeholder="e.g. Dips" autocomplete="off" enterkeyhint="done"><button class="btn primary" data-a="addex">Add</button></div>
     <datalist id="exnames">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist></section>`;
@@ -1938,6 +2389,40 @@ function draftHTML(c) {
     ${c.mode === "adjust" ? `<div class="row"><button class="btn primary" data-a="coachapply">Use this plan</button><button class="btn ghost" data-a="coachdiscard">Discard</button></div>` : `<p class="muted small" style="margin:0">Tap Start phase below to use this plan.</p>`}</div>`;
 }
 
+// swap panel: other exercises for the same movement; your equipment's first, others say what they need
+function swapHTML(e, live) {
+  const G = curGear(), opts = swapOpts(e, G), canKeep = live && S.swap && S.swap.pid && findPlanEx(S.swap.pid);
+  return `<div class="swaps stack"><span class="label">Swap for</span>
+    ${opts.length ? `<div class="chips">${opts.map(o => `<button class="chip${o.ok ? "" : " off"}" data-a="swapto" data-n="${esc(o.name)}">${esc(o.name)}${o.ok ? "" : `<small>needs ${esc(gearNeeds(o.need, G).join(", "))}</small>`}</button>`).join("")}</div>`
+      : `<p class="muted small" style="margin:0">No suggestions for this one.</p>`}
+    <div class="addex"><input id="swapin" class="textin" list="exnames-swap" placeholder="Or type another exercise" autocomplete="off" enterkeyhint="done" aria-label="Another exercise"><button class="btn" data-a="swapto">Use</button></div>
+    <datalist id="exnames-swap">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>
+    ${canKeep ? `<label class="check"><input type="checkbox" data-a="swapkeep"${S.swapKeep !== false ? " checked" : ""}>Also change it in my plan</label>` : live ? `<p class="muted small" style="margin:0">Changes today's workout only.</p>` : ""}
+    <p class="muted small" style="margin:0">Missing equipment? Set what your gym has under Settings, and Lift Log swaps the rest for you.</p></div>`;
+}
+const findPlanEx = id => { for (const d of (S.plan ? S.plan.days : [])) { const e = d.exercises.find(x => x.id === id); if (e) return e; } return null; };
+function doSwap(name) {
+  const sw = S.swap; if (!sw || !name) return;
+  const m = moveBy(name), opt = { name: m ? m.name : name, note: m && m.note, unit: m && m.unit };
+  if (sw.i != null) {
+    const s = editingSession(), ex = s && s.exercises[sw.i]; if (!ex) return;
+    const old = ex.name; applySwap(ex, opt); saveSession(s, 0);
+    const pe = sw.pid && S.swapKeep !== false && findPlanEx(sw.pid);
+    if (pe) { applySwap(pe, opt); savePlan(0); }
+    toast(`${old} → ${opt.name}${pe ? ", also in your plan." : " for today."}`);
+  } else {
+    const e = S.plan.days[sw.d].exercises[sw.e], old = resolveEx(e).name;
+    applySwap(e, opt); savePlan(0); toast(`${old} → ${opt.name}.`);
+  }
+  S.swap = null; render();
+}
+function gearHTML() {
+  const G = curGear();
+  return `<section class="card stack"><h2>Your equipment</h2><p class="muted small" style="margin:0">Lift Log only plans with what your gym has. Tap to turn equipment on or off.</p>
+    <div class="chips">${GEAR.map(([k, l]) => `<button class="chip${G.has(k) ? " on" : ""}" data-a="geartog" data-k="${k}" aria-pressed="${G.has(k)}">${esc(l)}</button>`).join("")}</div>
+    ${S.plan && S.plan.days.length ? `<button class="btn" data-a="gearfit">Fit my plan to this equipment</button>` : ""}</section>`;
+}
+
 // Settings (gear in the top bar): profile, training targets, and units under Advanced
 function settingsHTML() {
   let h = profileCard();
@@ -1946,6 +2431,7 @@ function settingsHTML() {
     h += `<section class="card stack"><h2>Training</h2><div class="row between"><label class="label" for="wtarget">Workouts per week</label><input class="textin" id="wtarget" data-a="wtarget" inputmode="numeric" value="${S.plan.weeklyTarget || ""}" placeholder="–" style="flex:0 0 72px;text-align:center"></div>
       ${usesLevel ? `<label class="label" for="level">Your pull-up level</label><select class="sel" id="level" data-a="level">${Object.entries(LEVELS).map(([k, L]) => `<option value="${k}"${(S.plan.level || "3") === k ? " selected" : ""}>${esc(L.label)}</option>`).join("")}</select>
       <p class="muted small" style="margin:0">${esc(level().note)} The pull-up and toes-to-bar exercises in your plan change with the level.</p>` : ""}</section>`;
+    h += gearHTML();
   }
   const u = imperial() ? "imperial" : "metric";
   h += `<section class="card"><details class="more"${S.advOpen ? " open" : ""}><summary>Advanced</summary><div class="stack"><span class="label">Units</span>
@@ -1974,8 +2460,8 @@ function viewPlan() {
         <input id="en-${e.id}" data-a="exname" data-d="${di}" data-e="${ei}" value="${esc(e.name)}" placeholder="Exercise" list="exnames-plan" aria-label="Exercise name"${fx}>
         <input class="c" id="es-${e.id}" inputmode="numeric" data-a="exsets" data-d="${di}" data-e="${ei}" value="${e.sets || ""}" aria-label="Sets"${fx}>
         <input class="c" id="er-${e.id}" data-a="exreps" data-d="${di}" data-e="${ei}" value="${esc(e.reps || "")}" placeholder="8-10" aria-label="Rep target"${fx}>
-        <div class="ord"><button data-a="exmv" data-d="${di}" data-e="${ei}" data-dir="-1" aria-label="Move up"${ei ? "" : " disabled style=\"opacity:.25\""}>${ICON.up}</button><button data-a="exmv" data-d="${di}" data-e="${ei}" data-dir="1" aria-label="Move down"${ei < d.exercises.length - 1 ? "" : " disabled style=\"opacity:.25\""}>${ICON.down}</button><button data-a="exrm" data-d="${di}" data-e="${ei}" aria-label="Remove exercise">${ICON.x}</button></div>
-      </div>${e0.slot ? `<div class="slotnote">Set by your pull-up level</div>` : `<div class="pex2${e0.kind ? "" : " u"}"><input id="eo-${e.id}" data-a="exnote" data-d="${di}" data-e="${ei}" value="${esc(e0.note || "")}" placeholder="${e0.kind === "metcon" ? "Metcon note" : "Note"}" aria-label="Note">${e0.kind ? "" : `<select data-a="exunit" data-d="${di}" data-e="${ei}" aria-label="Logged in">${[["", "reps"], ["s", "sec"], ["m", "m"]].map(([k, l]) => `<option value="${k}"${(e0.unit === "reps" ? "" : e0.unit || "") === k ? " selected" : ""}>${l}</option>`).join("")}${e0.unit && !["s", "m", "reps"].includes(e0.unit) ? `<option value="${esc(e0.unit)}" selected>${esc(e0.unit)}</option>` : ""}</select>`}<input class="c" id="et-${e.id}" inputmode="numeric" data-a="exrest" data-d="${di}" data-e="${ei}" value="${e0.rest || ""}" placeholder="Rest s" aria-label="Rest in seconds"></div>`}`; }).join("")}
+        <div class="ord">${e0.kind ? "" : `<button data-a="swapopen" data-d="${di}" data-e="${ei}" aria-label="Swap ${esc(e.name || "exercise")}" aria-expanded="${!!(S.swap && S.swap.d === di && S.swap.e === ei)}">${ICON.swap}</button>`}<button data-a="exmv" data-d="${di}" data-e="${ei}" data-dir="-1" aria-label="Move up"${ei ? "" : " disabled style=\"opacity:.25\""}>${ICON.up}</button><button data-a="exmv" data-d="${di}" data-e="${ei}" data-dir="1" aria-label="Move down"${ei < d.exercises.length - 1 ? "" : " disabled style=\"opacity:.25\""}>${ICON.down}</button><button data-a="exrm" data-d="${di}" data-e="${ei}" aria-label="Remove exercise">${ICON.x}</button></div>
+      </div>${S.swap && S.swap.d === di && S.swap.e === ei ? swapHTML(e0) : ""}${e0.slot ? `<div class="slotnote">Set by your pull-up level</div>` : `<div class="pex2${e0.kind ? "" : " u"}"><input id="eo-${e.id}" data-a="exnote" data-d="${di}" data-e="${ei}" value="${esc(e0.note || "")}" placeholder="${e0.kind === "metcon" ? "Metcon note" : "Note"}" aria-label="Note">${e0.kind ? "" : `<select data-a="exunit" data-d="${di}" data-e="${ei}" aria-label="Logged in">${[["", "reps"], ["s", "sec"], ["m", "m"]].map(([k, l]) => `<option value="${k}"${(e0.unit === "reps" ? "" : e0.unit || "") === k ? " selected" : ""}>${l}</option>`).join("")}${e0.unit && !["s", "m", "reps"].includes(e0.unit) ? `<option value="${esc(e0.unit)}" selected>${esc(e0.unit)}</option>` : ""}</select>`}<input class="c" id="et-${e.id}" inputmode="numeric" data-a="exrest" data-d="${di}" data-e="${ei}" value="${e0.rest || ""}" placeholder="Rest s" aria-label="Rest in seconds"></div>`}`; }).join("")}
       <button class="linkbtn" style="align-self:flex-start" data-a="exadd" data-d="${di}">+ Add exercise</button></section>`;
   });
   h += `<datalist id="exnames-plan">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>`;
@@ -2098,7 +2584,7 @@ function startWorkout(dayId) {
     id: uid(), dayId: day ? day.id : null, dayName: day ? day.name || "Workout" : "Workout", date: todayStr(), phaseId: ph ? ph.id : null,
     startedAt: Date.now(), finishedAt: null, finished: false, test: !!(day && day.test),
     exercises: day ? day.exercises.map(resolveEx).filter(e => e.name.trim()).map(e => {
-      const x = { name: e.name.trim(), target: exTarget(e), sets: e.kind ? [] : Array.from({ length: Math.max(1, Number(e.sets) || 1) }, () => ({ w: null, r: null, done: false })) };
+      const x = { name: e.name.trim(), pid: e.id, target: exTarget(e), sets: e.kind ? [] : Array.from({ length: Math.max(1, Number(e.sets) || 1) }, () => ({ w: null, r: null, done: false })) };
       for (const k of ["kind", "block", "note", "rest", "unit", "wod", "test"]) if (e[k]) x[k] = e[k];
       return x;
     }) : []
@@ -2121,6 +2607,7 @@ app.addEventListener("click", e => {
   const b = e.target.closest("[data-a]"); if (!b || b.tagName === "INPUT" || b.tagName === "SELECT" || b.tagName === "TEXTAREA") return;
   const a = b.dataset.a;
   if (a !== "arm" && S.armed) { S.armed = null; }
+  if (S.swap && !a.startsWith("swap")) S.swap = null;
   memo.clear();
   const s = editingSession(), jr = S.journey;
   const goal = () => jr.goals[+b.dataset.g], ms = () => goal().milestones[+b.dataset.m];
@@ -2139,6 +2626,21 @@ app.addEventListener("click", e => {
       o.log.push({ by: "app", text: q.ask }); render(); break;
     }
     case "obdone": finishOnb(); break;
+    case "swapopen": {
+      const open = b.dataset.i != null ? S.swap && S.swap.i === +b.dataset.i : S.swap && S.swap.d === +b.dataset.d && S.swap.e === +b.dataset.e;
+      S.swap = open ? null : b.dataset.i != null ? { i: +b.dataset.i, pid: (s && s.exercises[+b.dataset.i] || {}).pid } : { d: +b.dataset.d, e: +b.dataset.e };
+      render(); break;
+    }
+    case "swapto": { const inp = document.getElementById("swapin"); const n = b.dataset.n || (inp && inp.value.trim()); if (!n) { if (inp) inp.focus(); return; } doSwap(n); break; }
+    case "geartog": {
+      const G = curGear(), k = b.dataset.k; if (G.has(k)) G.delete(k); else G.add(k);
+      S.plan.gear = GEAR.map(x => x[0]).filter(x => G.has(x)); savePlan(0); render(); break;
+    }
+    case "gearfit": {
+      const ch = fitPlanToGear(S.plan, curGear());
+      if (ch.length) savePlan(0);
+      toast(ch.length ? `${ch.length} swapped: ${ch.join(", ")}.` : "Your plan already fits this equipment."); break;
+    }
     case "goaltog": {
       const p = clone(jr.profile), k = b.dataset.k, on = p.goals.includes(k);
       if (on && p.goals.length === 1) { toast("Keep at least one goal."); return; }
@@ -2289,11 +2791,13 @@ app.addEventListener("change", e => {
     if (from !== norm(to)) { for (const k of Object.keys(al)) if (norm(al[k]) === from) al[k] = to; al[from] = to; delete al[norm(to)]; saveJourney(0); toast(`${t.value} now counts as ${to}.`); }
   }
   else if (a === "level") { S.plan.level = t.value; savePlan(0); render(); }
+  else if (a === "swapkeep") S.swapKeep = t.checked;
   else if (a === "sdate") { const s = editingSession(); if (s && /^\d{4}-\d{2}-\d{2}$/.test(t.value)) { s.date = t.value; saveSession(s, 0); render(); } }
 });
 app.addEventListener("keydown", e => {
   const t = e.target;
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing && t.id === "obin") { e.preventDefault(); obSend(); return; }
+  if (e.key === "Enter" && t.id === "swapin") { e.preventDefault(); doSwap(t.value.trim()); return; }
   if (e.key === "Enter" && t.tagName === "INPUT") {
     if (t.id && t.id.startsWith("addex-")) { e.preventDefault(); t.parentElement.querySelector("button").click(); return; }
     if (t.dataset.a === "w") { e.preventDefault(); const r = document.getElementById(t.id.replace(/^w-/, "r-")); if (r) r.focus(); return; }

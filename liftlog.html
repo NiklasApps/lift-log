@@ -343,9 +343,34 @@ li.next .msdot { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent
 .opt span { font-size: 14px; color: var(--muted); }
 .opt.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .opt.on span { color: inherit; opacity: .85; }
-.obgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.obgrid label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.obfoot { display: flex; gap: 10px; }
+/* onboarding dialogue: Lift Log's questions on the left, your answers on the right, a composer fixed at the bottom */
+.chat { display: flex; flex-direction: column; gap: 8px; }
+.msg { max-width: 86%; padding: 10px 14px; border-radius: 18px; overflow-wrap: anywhere; }
+.msg.app { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.msg.me { align-self: flex-end; background: var(--accent); color: var(--surface); border-bottom-right-radius: 6px; white-space: pre-wrap; }
+.msg.me + .msg.app, .msg.app + .msg.me { margin-top: 6px; }
+.dots { display: flex; gap: 5px; padding: 15px 16px; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); opacity: .5; }
+@media (prefers-reduced-motion: no-preference) { .dots i { animation: blink 1.2s infinite both; } .dots i:nth-child(2) { animation-delay: .2s; } .dots i:nth-child(3) { animation-delay: .4s; } @keyframes blink { 30% { opacity: 1; transform: translateY(-2px); } } }
+.composer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.composer .wrap { display: flex; align-items: flex-end; gap: 8px; padding-block: 10px; }
+.composer textarea { flex: 1; min-width: 0; min-height: 48px; max-height: 160px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); padding: 12px 16px; font: inherit; font-size: 16px; color: inherit; resize: none; field-sizing: content; }
+.composer textarea:focus { border-color: var(--accent); outline: none; }
+.composer textarea::placeholder { color: var(--muted); }
+.round { width: 48px; height: 48px; flex: none; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); display: grid; place-items: center; }
+.round svg { width: 22px; height: 22px; }
+.round.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.round:disabled { opacity: .45; }
+.round.live { background: var(--warn); border-color: var(--warn); color: var(--surface); }
+@media (prefers-reduced-motion: no-preference) { .round.live { animation: live 1.4s ease-out infinite; } @keyframes live { from { box-shadow: 0 0 0 0 var(--warn-soft); } to { box-shadow: 0 0 0 12px transparent; } } }
+.recap { list-style: none; margin: 0; padding: 0; }
+.recap li { border-top: 1px solid var(--line); }
+.recap li:first-child { border-top: 0; }
+.recap button { width: 100%; border: 0; background: none; padding: 10px 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; text-align: left; align-items: center; }
+.recap button .label { grid-column: 1; }
+.recap button > span:nth-child(2) { grid-column: 1; }
+.recap button em { grid-column: 2; grid-row: 1 / 3; font-style: normal; color: var(--accent); font-weight: 600; font-size: 14px; }
+[data-recap] { scroll-margin-top: 70px; }
 details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 14px; min-height: 32px; display: flex; align-items: center; }
 details.more[open] summary { margin-bottom: 8px; }
 @media (prefers-reduced-motion: no-preference) { .pop { animation: pop .55s cubic-bezier(.2, 1.5, .4, 1) both; } @keyframes pop { from { transform: scale(.6); opacity: 0; } } }
@@ -392,6 +417,8 @@ const ICON = {
   up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
   down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
 };
 
@@ -1699,7 +1726,7 @@ function render() {
   const body = { train: viewTrain, history: viewHistory, progress: viewProgress, plan: viewPlan }[S.view]();
   let h = topbar(titles[S.view], true);
   h += `<main class="wrap">${body}</main>`;
-  if (S.restAt && activeSession() && S.view === "train") h += `<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b>${S.restLen ? `<button data-a="restplus">+30 s</button>` : ""}<button data-a="restoff">Hide</button></div></div></div>`;
+  if (S.restAt && activeSession() && S.view === "train") h += `<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b><button data-a="restplus">+30 s</button><button data-a="restoff">Hide</button></div></div></div>`;
   h += navHTML();
   if (S.sheetId && S.sessions.get(S.sheetId)) {
     const s = S.sessions.get(S.sheetId);
@@ -1719,23 +1746,48 @@ function toast(msg) { S.toast = msg; clearTimeout(toastT); toastT = setTimeout((
 setInterval(() => {
   app.querySelectorAll("[data-clock]").forEach(el => el.textContent = mmss(Date.now() - Number(el.dataset.clock)));
   const r = app.querySelector("[data-rest]"); if (r && S.restAt) r.textContent = restText();
-  if (S.restAt && S.restLen && !S.restBeeped && restOver()) {
+  if (S.restAt && !S.restBeeped && restOver()) {
     S.restBeeped = true; beep();
     const p = app.querySelector(".restbar .pill"); if (p) p.classList.add("end");
     const l = app.querySelector("[data-restl]"); if (l) l.textContent = restLabel();
   }
 }, 250);
 
-/* rest timer: counts down from the exercise's rest time, or up when it has none */
+/* rest timer: always counts down. The length comes from the plan's rest time, or from the set itself
+   (heavier, lower-rep sets need longer), then adjusts for how hard the set was and what comes next. */
+function restBase(ex, st) {
+  if (ex.rest > 0) return ex.rest;
+  if (ex.unit === "s" || ex.unit === "m") return 90;
+  const r = st.r || 0, pf = J().profile, md = pf ? planMode(pf) : "";
+  let sec = r <= 5 ? 180 : r <= 8 ? 120 : r <= 12 ? 90 : 60;
+  if (md === "strength" && r <= 8) sec += 30;
+  if (md === "fitness") sec -= 15;
+  if (pf && pf.age >= 50) sec += 30;
+  return sec;
+}
+function restFor(s, i, j) {
+  const exs = s.exercises, ex = exs[i], st = ex.sets[j], lifts = exs.filter(e => !e.kind);
+  if (lifts.every(e => e.sets.every(x => x.done))) return 0; // workout's done, nothing to rest for
+  let sec = restBase(ex, st);
+  // missed the bottom of the target rep range: that set was a grind, so rest a bit longer
+  const lo = parseInt(String(ex.target || "").split("×").pop(), 10);
+  if (ex.unit !== "s" && ex.unit !== "m" && lo > 0 && st.r < lo) sec += 30;
+  // last set of this exercise: rest for the next one, plus time to set it up
+  if (ex.sets.every(x => x.done)) {
+    const nx = exs.slice(i + 1).concat(exs.slice(0, i)).find(e => !e.kind && e.sets.some(x => !x.done));
+    if (nx) sec = restBase(nx, nx.sets.find(x => !x.done) || {}) + 30;
+  }
+  return Math.min(600, Math.max(30, Math.round(sec / 15) * 15));
+}
 let actx = null;
 function startRest(sec) {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.resume) actx.resume(); } catch { actx = null; }
-  S.restAt = Date.now(); S.restLen = Number(sec) || 0; S.restBeeped = false;
+  S.restAt = Date.now(); S.restLen = Number(sec) || 90; S.restBeeped = false;
 }
 const restLeft = () => S.restLen * 1000 - (Date.now() - S.restAt);
-const restOver = () => !!S.restLen && restLeft() <= 0;
-const restText = () => S.restLen ? (restOver() ? "0:00" : mmss(restLeft() + 999)) : mmss(Date.now() - S.restAt);
-const restLabel = () => S.restLen ? (restOver() ? "Next set" : "Rest") : "Rest";
+const restOver = () => restLeft() <= 0;
+const restText = () => restOver() ? "0:00" : mmss(restLeft() + 999);
+const restLabel = () => restOver() ? "Next set" : "Rest";
 function beep() {
   try { if (actx) [0, .25, .5].forEach(o => { const g = actx.createGain(), os = actx.createOscillator(); os.frequency.value = 880; g.gain.value = .15; os.connect(g).connect(actx.destination); os.start(actx.currentTime + o); os.stop(actx.currentTime + o + .15); }); } catch {}
   try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch {}
@@ -1864,7 +1916,7 @@ app.addEventListener("click", e => {
         if (st.w == null && b.dataset.phw) st.w = parseNum(b.dataset.phw);
         if (st.r == null && b.dataset.phr) st.r = parseNum(b.dataset.phr);
         if (!(st.r > 0)) { const inp = document.getElementById(`r-${s.id}-${i}-${j}`); if (inp) inp.focus(); toast("Enter the reps first."); return; }
-        st.done = true; if (!S.sheetId) startRest(s.exercises[i].rest);
+        st.done = true; if (!S.sheetId) { const sec = restFor(s, i, j); if (sec) startRest(sec); else S.restAt = null; }
       } else st.done = false;
       saveSession(s, 300); render(); break;
     }

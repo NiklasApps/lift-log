@@ -1658,18 +1658,25 @@ async function obClaude(q, asked, text, o) {
 
 const needsOnb = () => S.planLoaded && S.journeyLoaded && S.sessionsLoaded && !!S.journey && !J().profile && !S.onbLater && !activeSession();
 const OB_EXTRA = { focus: "", metcon: null, kip: null, missing: [], have: [], avoid: [], notes: [] };
-function newOnb() {
-  const p = J().profile, o = { q: null, miss: null, tries: 0, edit: false, draft: "", busy: false, listening: false, usePlan: true, scroll: p ? null : "end", focus: false, log: [], turns: 0,
+function newOnb(fresh) {
+  // fresh: the whole questionnaire again from the first question; the saved profile and plan stay until you save
+  const p = fresh ? null : J().profile, o = { fresh: !!fresh, q: null, miss: null, tries: 0, edit: false, draft: "", busy: false, listening: false, usePlan: true, scroll: p ? null : "end", focus: false, log: [], turns: 0,
     p: p ? { ...OB_EXTRA, focus: "balanced", kip: 0, ...clone(p) } : { heightCm: null, weightKg: null, age: null, sports: [], experience: "", pull: null, push: null, hs: null, strong: [], weak: [], goals: [], days: null, minutes: null, equip: "", limits: [], ...clone(OB_EXTRA) } };
+  const hi = text => { if (!fresh) o.log.push({ by: "app", text }); };
   if (p) o.log.push({ by: "app", text: "Here's what I know about you. Tap anything that has changed, and I'll update your plan." });
-  else if (coachOn()) {
-    // Claude leads: open questions, follow-ups on what you say, then it fits the plan to you
-    o.q = "chat"; o.focus = matchMedia("(pointer: fine)").matches;
-    o.log.push({ by: "app", text: `Hi. I'm going to get to know you a bit, then build your plan, goals and benchmarks. Answer in your own words${SR ? ", typed or spoken" : ""}, as much or as little as you like.` },
-      { by: "app", text: "Tell me about yourself and your training so far. What have you done, and what made you want to start now?" });
-  } else {
-    o.q = OB_Q[0].id; o.focus = matchMedia("(pointer: fine)").matches;
-    o.log.push({ by: "app", text: `Hi. I'll ask you a few questions and build your plan, goals and benchmarks from your answers. Just answer in your own words${SR ? ", typed or spoken" : ""}.` }, { by: "app", text: OB_Q[0].pre + OB_Q[0].ask });
+  else {
+    o.focus = matchMedia("(pointer: fine)").matches;
+    if (fresh) o.log.push({ by: "app", text: "Let's start over. Your current profile and plan stay as they are until you save at the end." });
+    if (coachOn()) {
+      // Claude leads: open questions, follow-ups on what you say, then it fits the plan to you
+      o.q = "chat";
+      hi(`Hi. I'm going to get to know you a bit, then build your plan, goals and benchmarks. Answer in your own words${SR ? ", typed or spoken" : ""}, as much or as little as you like.`);
+      o.log.push({ by: "app", text: "Tell me about yourself and your training so far. What have you done, and what made you want to start now?" });
+    } else {
+      o.q = OB_Q[0].id;
+      hi(`Hi. I'll ask you a few questions and build your plan, goals and benchmarks from your answers. Just answer in your own words${SR ? ", typed or spoken" : ""}.`);
+      o.log.push({ by: "app", text: OB_Q[0].pre + OB_Q[0].ask });
+    }
   }
   return o;
 }
@@ -1849,7 +1856,7 @@ function obReply(o, q, got) {
   o.edit = false;
   if (next) { o.q = next.id; say((next.pre || "") + next.ask); return; }
   o.q = null; o.scroll = "recap";
-  if (!o.done) { o.done = true; if (!J().profile) say("That's everything. Here's what I've got, and the plan I built from it. Tap a line to change it."); }
+  if (!o.done) { o.done = true; if (!J().profile || o.fresh) say("That's everything. Here's what I've got, and the plan I built from it. Tap a line to change it."); }
 }
 
 // voice: the browser's speech recognition fills the answer and sends it when you stop talking
@@ -1894,7 +1901,8 @@ function viewOnb() {
     <section class="card stack"><h2>Goals</h2>${p.goals.map(k => `<div class="dday"><b>${esc(goalName(k))}</b><ul class="rules">${goalMilestones(k, p).map(m => `<li>${esc(m.name)}</li>`).join("")}</ul></div>`).join("")}</section>
     <section class="card stack"><h2>Benchmarks</h2><p class="muted small" style="margin:0">Tested every 6 weeks, always the same, so you can see your progress.</p><ul class="exlist">${bs.map(b => `<li><span>${esc(b.name)}</span><span class="tgt">${benchUnit({ unit: b.unit })}</span></li>`).join("")}</ul>
     ${S.plan && S.plan.days.length ? `<label class="check"><input type="checkbox" data-a="obuseplan"${o.usePlan ? " checked" : ""}>Replace my current plan. You can restore the old one under Plan → Phases.</label>` : ""}</section>
-    <button class="btn primary big" data-a="obdone">${J().profile ? "Save" : "Start training"}</button>`;
+    <button class="btn primary big" data-a="obdone">${J().profile ? "Save" : "Start training"}</button>
+    ${J().profile && !o.fresh ? `<button class="btn" data-a="obstart" data-fresh="1">Start over from the first question</button>` : ""}`;
 }
 function finishOnb() {
   const o = S.onb, first = !J().profile, hadPlan = !!(S.plan && S.plan.days.length);
@@ -2185,7 +2193,7 @@ function aliasHTML(name) {
 function profileCard() {
   const p = J().profile;
   if (!p) return `<section class="card stack"><h2>Your profile</h2><p class="muted small" style="margin:0">Answer a few questions and Lift Log sets your goals, benchmarks and plan from them.</p><button class="btn primary" data-a="obstart">Answer a few questions</button></section>`;
-  return `<section class="card stack"><div class="row between"><h2>Your profile</h2><button class="btn sm" data-a="obstart">Retake</button></div><ul class="rules">${profileLines(p).map(l => `<li>${esc(l)}</li>`).join("")}</ul></section>`;
+  return `<section class="card stack"><div class="row between"><h2>Your profile</h2><div class="row" style="gap:6px"><button class="btn sm" data-a="obstart">Edit answers</button><button class="btn sm" data-a="obstart" data-fresh="1">Start over</button></div></div><ul class="rules">${profileLines(p).map(l => `<li>${esc(l)}</li>`).join("")}</ul></section>`;
 }
 function phasesEditor() {
   const p = curPhase(); if (!p) return "";
@@ -2616,7 +2624,7 @@ app.addEventListener("click", e => {
     case "retry": retryAll(); break;
     case "settings": S.settings = true; render(); break;
     case "closesettings": S.settings = false; S.advOpen = false; render(); break;
-    case "obstart": obStop(); S.onb = newOnb(); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
+    case "obstart": obStop(); S.onb = newOnb(!!b.dataset.fresh); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
     case "oblater": obStop(); S.onb = null; S.onbLater = true; window.scrollTo(0, 0); render(); break;
     case "obsend": if (rec) rec.stop(); else obSend(); break;
     case "oblisten": obListen(); break;

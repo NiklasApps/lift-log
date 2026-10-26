@@ -370,7 +370,7 @@ li.next .msdot { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent
 .recap button .label { grid-column: 1; }
 .recap button > span:nth-child(2) { grid-column: 1; }
 .recap button em { grid-column: 2; grid-row: 1 / 3; font-style: normal; color: var(--accent); font-weight: 600; font-size: 14px; }
-[data-recap] { scroll-margin-top: 70px; }
+.chat .msg, [data-recap] { scroll-margin-top: 70px; }
 details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 14px; min-height: 32px; display: flex; align-items: center; }
 details.more[open] summary { margin-bottom: 8px; }
 @media (prefers-reduced-motion: no-preference) { .pop { animation: pop .55s cubic-bezier(.2, 1.5, .4, 1) both; } @keyframes pop { from { transform: scale(.6); opacity: 0; } } }
@@ -1118,65 +1118,344 @@ function applyProfile(p, usePlan) {
   saveJourney(0);
 }
 
-/* ---------- questionnaire ---------- */
-const OB_STEPS = ["About you", "Your background", "Where you are now", "Your goals", "Your week", "Your plan"];
-const OB_NUM = ["pull", "push", "hs", "days", "minutes"];
+/* ---------- questionnaire: a short dialogue, answered in your own words, typed or spoken ---------- */
+// each question fills some profile fields; `need` ones get a follow-up when the answer doesn't give them
+const OB_EXP = { new: "new to training", under1: "under a year of training", "1to3": "1–3 years of training", "3plus": "3+ years of training" };
+const OB_HS = ["no handstand yet", "handstand against a wall", "freestanding handstand for a few seconds", "walks on hands"];
+const andJoin = a => a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+const lowList = (list, ks) => ks.map(k => optLabel(list, k).toLowerCase());
+const upFirst = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const OB_Q = [
+  { id: "body", label: "You", fields: ["heightCm", "weightKg", "age"], need: ["heightCm", "weightKg"], pre: "Let's start with you. ",
+    ask: "How tall are you, how much do you weigh, and how old are you?",
+    sum: p => { const [ft, inch] = feetIn(p.heightCm); return `${imperial() ? `${ft}′${inch}″` : Math.round(p.heightCm) + " cm"}, ${fmt(bodyW(p), 0)} ${units()}${p.age ? ", " + p.age + " years" : ""}`; } },
+  { id: "background", label: "Background", fields: ["sports", "experience"], need: ["sports", "experience"],
+    ask: "What sports or training have you done regularly? And how long have you trained with weights or your own bodyweight?",
+    sum: p => `${p.sports.includes("none") ? "nothing regular" : andJoin(lowList(SPORTS, p.sports))}, ${OB_EXP[p.experience]}` },
+  { id: "now", label: "Right now", fields: ["pull", "push", "hs"], need: ["pull", "push", "hs"],
+    ask: "Where are you right now? How many strict pull-ups and how many push-ups can you do in one go, and can you hold a handstand?",
+    sum: p => `${PULL_LV[p.pull]} pull-ups, ${PUSH_LV[p.push]} push-ups, ${OB_HS[p.hs]}` },
+  { id: "feel", label: "Strengths", fields: ["strong", "weak"], need: [],
+    ask: "What already feels strong, and what would you like to get better at?",
+    sum: p => [p.strong.length ? "strong at " + andJoin(lowList(AREAS, p.strong)) : "", p.weak.length ? "improve " + andJoin(lowList(AREAS, p.weak)) : ""].filter(Boolean).join("; ") || "nothing in particular" },
+  { id: "goals", label: "Goals", fields: ["goals"], need: ["goals"],
+    ask: "What do you want to achieve with your training?",
+    sum: p => andJoin(p.goals.map(k => goalName(k).toLowerCase())) },
+  { id: "week", label: "Your week", fields: ["days", "minutes"], need: ["days", "minutes"],
+    ask: "How many days a week can you train, and how long can a workout be?",
+    sum: p => `${p.days} days a week, ${p.minutes} min each` },
+  { id: "equip", label: "Equipment", fields: ["equip"], need: ["equip"],
+    ask: "Where do you train, and what equipment do you have there?",
+    sum: p => optLabel(EQUIP, p.equip).toLowerCase() },
+  { id: "limits", label: "Take care with", fields: ["limits"], need: [], pre: "Last one. ",
+    ask: "Is anything hurting or holding you back, like an old injury?",
+    sum: p => p.limits.length ? andJoin(lowList(LIMITS, p.limits)) : "nothing" }
+];
+const OB_FOLLOW = { heightCm: "And how tall are you?", weightKg: "And how much do you weigh?", sports: "What sports or training have you done regularly?",
+  experience: "How long have you trained with weights or your own bodyweight?", pull: "How many strict pull-ups can you do in one go?",
+  push: "And how many push-ups in one go?", hs: "And can you hold a handstand?", goals: "What would you like to be able to do in a few months?",
+  days: "How many days a week can you train?", minutes: "And how long can one workout be?", equip: "What equipment can you use when you train?" };
+// a second miss on these takes a sensible default; you can change it in the recap
+const OB_DEF = { sports: ["none"], experience: "under1", pull: 0, push: 0, hs: 0, days: 3, minutes: 60, equip: "gym" };
+const OB_HINT = {
+  heightCm: () => imperial() ? "Your height in feet and inches is enough, like 5 ft 10." : "Your height in centimetres is enough, like 178.",
+  weightKg: () => `Your weight in ${units()} is enough, like ${imperial() ? 170 : 75}.`,
+  goals: n => n ? "Lift Log can plan for getting stronger, building muscle, getting fitter, a first pull-up, a muscle-up, a handstand walk or a handstand push-up. Which comes closest?" : "Say it in your own words: what would you like to be able to do, or how would you like to feel, in a few months?"
+};
+const obHas = v => v != null && v !== "" && !(Array.isArray(v) && !v.length);
+
+// local reading of an answer: works offline; Claude reads it better when the page has it
+const OB_WORDS = [[/\bhalf an hour\b/g, "30 min"], [/\b(?:an?|one) hours? and a half\b|\b(?:one and a half|1\.5) hours?\b/g, "90 min"], [/\ban hour\b/g, "1 hour"],
+  [/\ba couple(?: of)?\b/g, "2"], [/\ba few\b/g, "3"], [/\bhalf a year\b/g, "6 months"], [/\ba year\b/g, "1 year"], [/\btwice\b/g, "2 times"], [/\bonce\b/g, "1 time"], [/\bevery ?day\b|\bdaily\b/g, "7 days"]];
+const NUM_W = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split(" ");
+const TENS = { thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+function obNorm(text) {
+  let t = " " + text.toLowerCase().replace(/[’`´]/g, "'").replace(/[”“]/g, '"').replace(/(\d),(\d)/g, "$1.$2") + " ";
+  for (const [re, s] of OB_WORDS) t = t.replace(re, s);
+  t = t.replace(/\b(thirty|forty|fifty|sixty|seventy|eighty|ninety)[\s-]?(one|two|three|four|five|six|seven|eight|nine)\b/g, (m, a, b) => TENS[a] + NUM_W.indexOf(b));
+  t = t.replace(/\b(thirty|forty|fifty|sixty|seventy|eighty|ninety)\b/g, m => TENS[m]);
+  t = t.replace(new RegExp(`\\b(${NUM_W.join("|")})\\b`, "g"), m => NUM_W.indexOf(m));
+  return t.replace(/\b(\d+) hundred(?: and)? (\d+)\b/g, (m, a, b) => +a * 100 + +b).replace(/\b(\d+) hundred\b/g, (m, a) => a * 100);
+}
+const nums = t => [...t.matchAll(/\d+(?:\.\d+)?/g)].map(m => +m[0]);
+const clauses = t => t.split(/[.;!?\n,]|\bbut\b|\band\b|\bwhile\b/);
+const NEG = /\b(can't|cant|cannot|can not|none|zero|not (?:one|1|a single|yet|really)|no|nope|never|unable)\b/;
+
+function obBody(t, only) {
+  const r = {}, imp = imperial();
+  const take = (re, f) => { t = t.replace(re, (...a) => { f(...a); return " "; }); };
+  take(/(\d)\s*(?:'|ft\b|foot\b|feet\b)\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:"|''|in\b|inch(?:es)?\b)?)?/, (m, f, i) => r.heightCm = (+f * 12 + (+i || 0)) * 2.54);
+  take(/(\d{2,3}(?:\.\d+)?)\s*(?:cm|centimet(?:er|re)s?)\b/, (m, a) => r.heightCm = +a);
+  take(/(\d(?:\.\d+)?)\s*(?:m|meters?|metres?)\b(?:\s*(\d{1,2})\b)?/, (m, a, b) => r.heightCm = a.includes(".") ? +a * 100 : +a * 100 + (+b || 0));
+  take(/(\d{2,3}(?:\.\d+)?)\s*(kg|kilos?|kilograms?|lbs?|pounds?)\b/, (m, a, u) => r.weightKg = u[0] === "k" ? +a : +a / 2.20462);
+  take(/(\d{1,2})\s*(?:years?|yrs?|y\/?o)\b/, (m, a) => r.age = +a);
+  take(/\b(?:i'm|i am|age|aged)\s*(\d{1,2})\b/, (m, a) => r.age = +a);
+  for (const n of nums(t)) {
+    if (only === "heightCm" && r.heightCm == null && imp && n >= 48 && n <= 90) r.heightCm = n * 2.54;
+    else if (r.heightCm == null && (only === "heightCm" || !imp) && n >= 120 && n <= 230) r.heightCm = n;
+    else if (r.heightCm == null && n >= 1.2 && n <= 2.3 && n % 1) r.heightCm = n * 100;
+    else if (r.weightKg == null && only !== "heightCm" && n >= (imp ? 70 : 30) && n <= (imp ? 450 : 250)) r.weightKg = imp ? n / 2.20462 : n;
+    else if (r.age == null && !only && n >= 10 && n <= 99) r.age = n;
+  }
+  return r;
+}
+
+const SPORT_KW = { gym: /\bgym|weights|weight ?lifting|lifting|bodybuild|powerlift|strength training|resistance/, crossfit: /cross ?fit|hyrox/,
+  gymnastics: /gymnast|calisthenic|street ?workout|parkour|acrobat/, running: /\brun|jog|marathon|athletics|sprint|triathlon/, cycling: /cycl|\bbike|biking|spinning|triathlon/,
+  swimming: /swim|triathlon|water polo/, team: /football|soccer|basket ?ball|handball|volley ?ball|rugby|hockey|baseball|softball|cricket|lacrosse|team sport|tennis|badminton|squash|padel/,
+  martial: /martial|boxing|\bbox(?:er|ed)?\b|mma|judo|karate|jiu|bjj|wrestl|taekwondo|kick ?box|muay|fencing/, climbing: /climb|boulder/, yoga: /yoga|pilates|barre/ };
+const TRAIN_KW = /gym|weight|lift|calisthenic|bodyweight|strength|crossfit|train|work(?:ing)? ?out/;
+function obYears(t, age) {
+  const out = [];
+  for (const m of t.matchAll(/(\d+(?:\.\d+)?)\s*\+?\s*(years?|yrs?|months?|weeks?)\b/g)) out.push(+m[1] / (m[2][0] === "m" ? 12 : m[2][0] === "w" ? 52 : 1));
+  for (const m of t.matchAll(/\bsince (?:i was |age |the age of )?(\d{1,4})\b/g)) { const n = +m[1], y = n > 1900 ? new Date().getFullYear() - n : age && n < age ? age - n : null; if (y != null) out.push(y); }
+  return out;
+}
+function obBackground(t, p, only) {
+  const r = {}, sp = Object.keys(SPORT_KW).filter(k => SPORT_KW[k].test(t));
+  if (sp.length) r.sports = sp;
+  else if (only !== "experience" && /^\W*(no|nope|nothing|none|not really|never)\b|\bnothing (?:regular|really)\b|\bno sports?\b/.test(t)) r.sports = ["none"];
+  const ds = obYears(t, p.age);
+  let y = ds.length === 1 ? ds[0] : null;
+  if (ds.length > 1) for (const c of clauses(t)) { const d = obYears(c, p.age); if (d.length && TRAIN_KW.test(c)) { y = d[0]; break; } }
+  if (y == null && only === "experience" && nums(t).length && nums(t)[0] < 60) y = nums(t)[0];
+  if (/\b(?:under|less than|not even|almost|nearly) 1 year/.test(t)) y = .5;
+  if (y != null) r.experience = y <= 0 ? "new" : y < 1 ? "under1" : y <= 3 ? "1to3" : "3plus";
+  else if (/never (?:really )?(?:lifted|trained|worked out|done)|no experience|beginner|just (?:started|starting)|new to/.test(t) || (only === "experience" && NEG.test(t))) r.experience = "new";
+  return r;
+}
+
+function obHs(c) {
+  if (/not even/.test(c)) return 0;
+  if (/against|wall/.test(c) && !/without (?:a |the )?wall|no wall|away from/.test(c)) return 1;
+  if (/walk/.test(c) && !/can't walk|cannot walk|not walk/.test(c)) return 3;
+  if (/free|without (?:a |the )?wall|on my own|by myself|unsupported|\d+\s*s(?:ec|econds?)?\b|balance/.test(c)) return 2;
+  if (NEG.test(c)) return 0;
+  if (/\b(?:yes|yeah|yep|sure|i can)\b/.test(c)) return 2;
+  return null;
+}
+function obNow(t, only) {
+  const r = {};
+  for (const c of clauses(t)) {
+    const n = nums(c)[0], v = n != null ? n : NEG.test(c) ? 0 : null;
+    if (/walk(?:ing)? on (?:my |your )?hands|hand ?walk/.test(c)) r.hs = 3;
+    else if (/hand ?stand/.test(c)) { const h = obHs(c); if (h != null) r.hs = h; }
+    else if (/pull|chin/.test(c)) { if (v != null) r.pull = v; }
+    else if (/push|press ?up/.test(c)) { if (v != null) r.push = v; }
+  }
+  if (only === "hs" && r.hs == null) { const h = obHs(t); if (h != null) r.hs = h; }
+  else if ((only === "pull" || only === "push") && r[only] == null) { const n = nums(t)[0]; if (n != null) r[only] = n; else if (NEG.test(t)) r[only] = 0; }
+  return r;
+}
+
+const AREA_KW = { push: /push|press|bench|\bdips?\b|chest|tricep|upper body/, pull: /pull|chin|\brows?\b|lats|bicep|grip|hang|upper body/,
+  legs: /\blegs?\b|squat|lunge|glute|quad|hamstring|lower body|calves|jump/, core: /core|\babs\b|plank|trunk/,
+  engine: /endurance|cardio|stamina|engine|conditioning|running|breath|\bgas\b/, mobility: /mobil|flexib|stretch|stiff|tight/, balance: /balance|stabil|coordinat/ };
+function obFeel(t) {
+  const r = { strong: [], weak: [] };
+  let mode = "strong";
+  for (const c of clauses(t)) {
+    if (/improve|better|weak|work on|lack|struggle|bad at|poor|not (?:so |very |that )?(?:good|great|strong)|need|want|could use|hard|suck|stiff|tight/.test(c)) mode = "weak";
+    else if (/strong|good at|easy|fine|great|solid|best/.test(c)) mode = "strong";
+    for (const k of Object.keys(AREA_KW)) if (AREA_KW[k].test(c) && !r.strong.includes(k) && !r.weak.includes(k)) r[mode].push(k);
+  }
+  return r;
+}
+
+const GOAL_KW = [["muscleup", /muscle[\s-]?ups?/], ["hspu", /handstand push|hand ?stand press|hspu/], ["handstand", /hand ?stand/], ["pullup", /pull[\s-]?ups?|chin[\s-]?ups?/],
+  ["muscle", /muscle|\bsize\b|bigger|bulk|hypertroph|\bmass\b|aesthetic|physique|\btone|look (?:good|better)|gain weight/],
+  ["strength", /strong|strength|heav|squat|deadlift|bench|powerlift|lift more|1 ?rm/],
+  ["fitness", /\bfit|condition|endurance|cardio|stamina|\blose|losing|\bfat\b|weight loss|health|lean|marathon|\brun|energy|\bshape\b/]];
+function obGoals(t) {
+  const hits = [];
+  for (const [k, re] of GOAL_KW) { const m = t.match(re); if (m) { hits.push([m.index, k]); t = t.replace(new RegExp(re.source, "g"), s => " ".repeat(s.length)); } }
+  return hits.length ? { goals: hits.sort((a, b) => a[0] - b[0]).map(h => h[1]) } : {};
+}
+
+function obWeek(t, only) {
+  const r = {}, avg = (a, b) => b ? (+a + +b) / 2 : +a;
+  t = t.replace(/(\d+(?:\.\d+)?)(?:\s*(?:-|to|or)\s*(\d+(?:\.\d+)?))?\s*(min|mins|minutes|h|hrs?|hours?)\b/, (m, a, b, u) => { r.minutes = avg(a, b) * (u[0] === "h" ? 60 : 1); return " "; });
+  t = t.replace(/(\d+)(?:\s*(?:-|to|or)\s*(\d+))?\s*(?:x\b|times|days?|sessions?|workouts?|a week|per week)/, (m, a, b) => { r.days = Math.round(avg(a, b)); return " "; });
+  for (const n of nums(t)) {
+    if (r.days == null && only !== "minutes" && n >= 1 && n <= 7) r.days = n;
+    else if (r.minutes == null && only === "minutes" && n <= 4) r.minutes = n * 60;
+    else if (r.minutes == null && n >= 15) r.minutes = n;
+  }
+  return r;
+}
+
+function obEquip(t) {
+  const has = re => re.test(t);
+  if (has(/barbell|squat rack|power rack|\bracks?\b|machines?|cables?|leg press/)) return { equip: "gym" };
+  if (has(/\bgym\b|fitness (?:studio|center|centre|club)|crossfit|\bstudio\b/) && !has(/home gym|no gym|without a gym|not (?:in|at) a gym|don't (?:go to|have) a gym/)) return { equip: "gym" };
+  if (has(/dumbbell|kettlebell|weights|\bbands?\b|home gym|sandbag/)) return { equip: "home" };
+  if (has(/bodyweight|body weight|no equipment|nothing|\bpark\b|outside|outdoors?|calisthenics|floor|pull[\s-]?up bar|just me/)) return { equip: "bw" };
+  return {};
+}
+
+const LIM_KW = { shoulders: /shoulder|rotator|labrum/, wrists: /wrist|elbow|forearm|carpal/, back: /\bback\b|spine|spinal|\bdisc|sciatic|lumbar/, knees: /knee|\bacl\b|\bmcl\b|menisc|patell/ };
+function obLimits(t) {
+  t = t.replace(/hold(?:s|ing)? (?:me |you )?back|back (?:then|in the day|when|to)|come back|came back/g, " ");
+  return { limits: Object.keys(LIM_KW).filter(k => LIM_KW[k].test(t)) };
+}
+
+function obLocal(id, text, p, only) {
+  const t = obNorm(text);
+  return id === "body" ? obBody(t, only) : id === "background" ? obBackground(t, p, only) : id === "now" ? obNow(t, only) : id === "feel" ? obFeel(t)
+    : id === "goals" ? obGoals(t) : id === "week" ? obWeek(t, only) : id === "equip" ? obEquip(t) : obLimits(t);
+}
+
+// local or Claude's reading → profile values; Claude's reply is untrusted, so only known keys and sane numbers pass
+const PULL_CUT = [1, 3, 6, 11], PUSH_CUT = [6, 16, 31];
+const lvOf = (n, cuts) => cuts.filter(c => n >= c).length;
+function obClean(r, p) {
+  const o = {}; if (!r || typeof r !== "object") return o;
+  const num = (k, lo, hi) => { const v = Number(r[k]); return r[k] != null && r[k] !== "" && Number.isFinite(v) && v >= lo && v <= hi ? v : null; };
+  const keys = (k, list) => Array.isArray(r[k]) ? [...new Set(r[k].map(String).filter(v => list.some(x => x[0] === v)))] : null;
+  let v;
+  if ((v = num("heightCm", 100, 250)) != null) o.heightCm = Math.round(v * 10) / 10;
+  if ((v = num("weightKg", 30, 300)) != null) o.weightKg = Math.round(v * 10) / 10;
+  if ((v = num("age", 10, 100)) != null) o.age = Math.round(v);
+  if ((v = keys("sports", SPORTS)) && v.length) o.sports = v.length > 1 ? v.filter(x => x !== "none") : v;
+  if (EXPERIENCE.some(x => x[0] === r.experience)) o.experience = r.experience;
+  if ((v = num("pull", 0, 500)) != null) o.pull = lvOf(v, PULL_CUT);
+  if ((v = num("push", 0, 5000)) != null) o.push = lvOf(v, PUSH_CUT);
+  if ((v = num("hs", 0, 3)) != null) o.hs = Math.round(v);
+  if ((v = keys("strong", AREAS))) o.strong = v;
+  if ((v = keys("weak", AREAS))) o.weak = v;
+  if ((v = keys("limits", LIMITS))) o.limits = v;
+  if ((v = keys("goals", GOALS)) && v.length) o.goals = [...new Set(v.map(g => g === "pullup" && p.pull >= 2 ? "strength" : g))];
+  if ((v = num("days", 1, 14)) != null) o.days = Math.min(6, Math.max(2, Math.round(v)));
+  if ((v = num("minutes", 10, 300)) != null) o.minutes = [30, 45, 60, 75, 90].reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
+  if (EQUIP.some(x => x[0] === r.equip)) o.equip = r.equip;
+  return o;
+}
+const keyList = list => list.map(x => `"${x[0]}" (${x[1]})`).join(", ");
+const OB_KEYS = {
+  heightCm: "height in centimetres, a number (convert feet and inches)", weightKg: "body weight in kilograms, a number (convert pounds)", age: "age in years, a number",
+  sports: `list of sports or training they have done regularly, from: ${keyList(SPORTS)}. ["none"] if nothing regular`,
+  experience: 'how long they have trained with weights or their own bodyweight: "new" (never), "under1" (under a year), "1to3" (1 to 3 years) or "3plus" (more than 3 years)',
+  pull: "strict pull-ups they can do in one set, a number (0 if none)", push: "push-ups they can do in one set, a number (0 if none)",
+  hs: "handstand: 0 (can't yet), 1 (against a wall), 2 (freestanding for a few seconds), 3 (can walk on their hands)",
+  strong: `areas that already feel strong, from: ${keyList(AREAS)}`, weak: "areas they want to improve, from the same list",
+  goals: `what they want to achieve, most important first, from: ${keyList(GOALS)}. Losing fat or general health counts as "fitness"`,
+  days: "training days per week, a number", minutes: "minutes per workout, a number",
+  equip: 'where they train: "gym" (barbells, racks, machines), "home" (dumbbells or kettlebells and a pull-up bar) or "bw" (bodyweight only)',
+  limits: `body parts that hurt or hold them back, from: ${keyList(LIMITS)}. [] if nothing does`
+};
+async function obClaude(q, asked, text, o) {
+  const prompt = ["A strength training app is getting to know a new user in a short chat. Turn their answer into data.", "",
+    "The app asked: " + asked, "They answered: " + text, "",
+    "Reply with only a JSON object. Include a key only when the answer says it or makes it clear; leave out anything you would have to guess. Keys:",
+    ...q.fields.map(k => `- "${k}": ${OB_KEYS[k]}`)].join("\n");
+  const ctl = o.ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000);
+  try { return await sampleFn.json(prompt, { signal: ctl.signal, cache: false }); } finally { clearTimeout(t); }
+}
+
 const needsOnb = () => S.planLoaded && S.journeyLoaded && S.sessionsLoaded && !!S.journey && !J().profile && !S.onbLater && !activeSession();
 function newOnb() {
-  const p = J().profile;
-  return { step: 0, usePlan: true, p: p ? clone(p) : { heightCm: null, weightKg: null, age: null, sports: [], experience: "", pull: null, push: null, hs: null, strong: [], weak: [], goals: [], days: Math.min(6, Math.max(2, (S.plan && S.plan.weeklyTarget) || 3)), minutes: 60, equip: "gym", limits: [] } };
-}
-function obMissing(o) {
-  const p = o.p;
-  if (o.step === 0) return !(p.heightCm >= 100 && p.heightCm <= 250) ? "Enter your height." : !(p.weightKg >= 30 && p.weightKg <= 300) ? "Enter your weight." : p.age != null && !(p.age >= 10 && p.age <= 100) ? "Check your age, or leave it empty." : "";
-  if (o.step === 1) return !p.sports.length ? "Pick at least one, or Nothing regular." : !p.experience ? "Say how long you've trained." : "";
-  if (o.step === 2) return p.pull == null ? "Pick how many pull-ups you can do." : p.push == null ? "Pick how many push-ups you can do." : p.hs == null ? "Pick your handstand level." : "";
-  if (o.step === 3) return p.goals.length ? "" : "Pick at least one goal.";
-  return "";
-}
-function viewOnb() {
-  const o = S.onb, p = o.p, st = o.step, n = OB_STEPS.length, back = !!J().profile || !!(S.plan && S.plan.days.length) || finished().length > 0;
-  const chips = (k, list, multi, none) => `<div class="daypick">${list.map(([v, l]) => { const on = multi ? p[k].includes(v) : String(p[k]) === String(v); return `<button class="chip${on ? " on" : ""}" data-a="${multi ? "obtog" : "obset"}" data-k="${k}" data-v="${v}" aria-pressed="${on}">${esc(l)}</button>`; }).join("")}${none ? `<button class="chip${p[k].length ? "" : " on"}" data-a="obtog" data-k="${k}" data-v="" aria-pressed="${!p[k].length}">${none}</button>` : ""}</div>`;
-  const opts = (k, list, multi) => `<div class="opts">${list.map(([v, l, d]) => { const on = multi ? p[k].includes(v) : p[k] === v; return `<button class="opt${on ? " on" : ""}" data-a="${multi ? "obtog" : "obset"}" data-k="${k}" data-v="${v}" aria-pressed="${on}"><b>${esc(l)}</b>${d ? `<span>${esc(d)}</span>` : ""}</button>`; }).join("")}</div>`;
-  const num = (k, lab, u, val, ph) => `<label><span class="label">${lab}</span><span class="field"><input id="ob-${k}" inputmode="decimal" autocomplete="off" data-a="obnum" data-k="${k}" value="${val == null || val === "" ? "" : val}" placeholder="${ph}"><span>${u}</span></span></label>`;
-  const lv = list => list.map((l, i) => [i, l]);
-  let h = `<div class="stack" style="gap:6px"><span class="label">Step ${st + 1} of ${n}</span><div class="meter"><i style="width:${Math.round((st + 1) / n * 100)}%"></i></div></div><section class="card stack"><h2>${OB_STEPS[st]}</h2>`;
-  if (st === 0) {
-    const [ft, inch] = p.heightCm ? feetIn(p.heightCm) : ["", ""], imp = imperial();
-    h += `<p class="muted small" style="margin:0">${J().profile ? "Change any answer and Lift Log updates your goals, benchmarks and plan." : "Six short steps. Your answers set your plan, the milestones for your goals and the benchmarks you test every 6 weeks."}</p>
-      <div class="obgrid">${imp ? num("ft", "Height", "ft", ft, "5") + num("in", "&nbsp;", "in", inch, "10") + num("lb", "Weight", "lb", p.weightKg ? Math.round(p.weightKg * 2.20462) : "", "170")
-        : num("cm", "Height", "cm", p.heightCm ? Math.round(p.heightCm) : "", "178") + num("kg", "Weight", "kg", p.weightKg ? Math.round(p.weightKg * 10) / 10 : "", "75")}${num("age", "Age (optional)", "yrs", p.age, "30")}</div>`;
-  } else if (st === 1) {
-    h += `<span class="label">Sports you've done regularly</span>${chips("sports", SPORTS, true)}<span class="label">How long have you trained with weights or bodyweight?</span>${chips("experience", EXPERIENCE)}`;
-  } else if (st === 2) {
-    h += `<span class="label">Strict pull-ups in one go</span>${chips("pull", lv(PULL_LV))}<span class="label">Push-ups in one go</span>${chips("push", lv(PUSH_LV))}<span class="label">Handstand</span>${chips("hs", lv(HS_LV))}
-      <span class="label">Your strengths</span>${chips("strong", AREAS, true)}<span class="label">What you want to improve</span>${chips("weak", AREAS, true)}`;
-  } else if (st === 3) {
-    h += `<p class="muted small" style="margin:0">Pick one or two. You can add another later under Progress → Goals.</p>${opts("goals", GOALS.filter(([k]) => k !== "pullup" || p.pull < 2), true)}`;
-  } else if (st === 4) {
-    h += `<span class="label">Training days per week</span>${chips("days", [2, 3, 4, 5, 6].map(d => [d, String(d)]))}<span class="label">Time per workout</span>${chips("minutes", [30, 45, 60, 75, 90].map(m => [m, m + " min"]))}
-      <span class="label">Where you train</span>${opts("equip", EQUIP)}<span class="label">Anything that hurts or holds you back?</span>${chips("limits", LIMITS, true, "Nothing")}`;
-  } else {
-    const r = buildPlan(p), bs = buildBench(p);
-    h += `<ul class="rules">${r.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul></section>
-      <section class="card stack"><h2>Your week</h2>${r.days.map(d => `<div class="dday"><b>${esc(d.name)}</b><ul class="exlist">${d.exercises.map(e => `<li><span${e.kind ? ' class="muted"' : ""}>${esc(e.name)}</span><span class="tgt">${e.kind ? "" : esc(exTarget(e) + (e.unit ? " " + e.unit : ""))}</span></li>`).join("")}</ul></div>`).join("")}</section>
-      <section class="card stack"><h2>Goals</h2>${p.goals.map(k => `<div class="dday"><b>${esc(goalName(k))}</b><ul class="rules">${goalMilestones(k, p).map(m => `<li>${esc(m.name)}</li>`).join("")}</ul></div>`).join("")}</section>
-      <section class="card stack"><h2>Benchmarks</h2><p class="muted small" style="margin:0">Tested every 6 weeks, always the same, so you can see your progress.</p><ul class="exlist">${bs.map(b => `<li><span>${esc(b.name)}</span><span class="tgt">${benchUnit({ unit: b.unit })}</span></li>`).join("")}</ul>
-      ${S.plan && S.plan.days.length ? `<label class="check"><input type="checkbox" data-a="obuseplan"${o.usePlan ? " checked" : ""}>Replace my current plan. You can restore the old one under Plan → Phases.</label>` : ""}`;
+  const p = J().profile, o = { q: null, miss: null, tries: 0, edit: false, draft: "", busy: false, listening: false, usePlan: true, scroll: p ? null : "end", focus: false, log: [],
+    p: p ? clone(p) : { heightCm: null, weightKg: null, age: null, sports: [], experience: "", pull: null, push: null, hs: null, strong: [], weak: [], goals: [], days: null, minutes: null, equip: "", limits: [] } };
+  if (p) o.log.push({ by: "app", text: "Here's what I know about you. Tap anything that has changed, and I'll update your plan." });
+  else {
+    o.q = OB_Q[0].id; o.focus = matchMedia("(pointer: fine)").matches;
+    o.log.push({ by: "app", text: `Hi. I'll ask you a few questions and build your plan, goals and benchmarks from your answers. Just answer in your own words${SR ? ", typed or spoken" : ""}.` }, { by: "app", text: OB_Q[0].pre + OB_Q[0].ask });
   }
-  h += `</section><div class="obfoot">${st ? `<button class="btn big" data-a="obback" style="flex:0 0 auto;width:auto">Back</button>` : ""}<button class="btn primary big" data-a="obnext">${st === n - 1 ? "Start training" : "Next"}</button></div>`;
-  if (back) h += `<div class="row" style="justify-content:center"><button class="linkbtn" data-a="oblater">${J().profile ? "Cancel" : "Not now"}</button></div>`;
-  return h;
+  return o;
+}
+async function obSend() {
+  const o = S.onb, text = (o.draft || "").trim();
+  if (!text || o.busy || !o.q) return;
+  const q = OB_Q.find(x => x.id === o.q), asked = o.log.filter(m => m.by === "app").pop().text;
+  o.log.push({ by: "me", text }); o.draft = ""; o.busy = true; o.scroll = "end"; render();
+  let got = obClean(obLocal(q.id, text, o.p, o.miss), o.p);
+  if (coachOn()) {
+    try { got = { ...got, ...obClean(await obClaude(q, asked, text, o), o.p) }; }
+    catch (e) { if (COACH_OFF.includes(e && e.code)) S.coachOff = true; }
+  } else await new Promise(r => setTimeout(r, 450));
+  if (S.onb !== o) return;
+  for (const k of Object.keys(got)) if (!q.fields.includes(k)) delete got[k];
+  o.busy = false; o.scroll = "end";
+  obReply(o, q, got);
+  render();
+}
+function obReply(o, q, got) {
+  const say = text => o.log.push({ by: "app", text }), heard = Object.keys(got).length > 0, p = o.p;
+  if (!heard && o.edit && !o.miss) { say("Sorry, I didn't catch that. " + q.ask); return; }
+  if (q.id === "feel") got = { strong: [], weak: [], ...got };
+  Object.assign(p, got);
+  p.strong = p.strong.filter(x => !p.weak.includes(x));
+  let extra = "";
+  if (q.id === "goals" && p.goals.length > 2) { extra = ` I'll start with these two. You can add ${p.goals.length > 3 ? "the others" : "the other one"} later under Progress → Goals.`; p.goals = p.goals.slice(0, 2); }
+  for (;;) {
+    const k = q.need.find(k => !obHas(p[k]));
+    if (!k) break;
+    if (o.miss !== k) { o.miss = k; o.tries = 0; say((heard ? "" : "Tell me a bit more. ") + OB_FOLLOW[k]); return; }
+    if (k in OB_DEF) { p[k] = clone(OB_DEF[k]); continue; }
+    say("I didn't catch that. " + OB_HINT[k](o.tries++)); return;
+  }
+  o.miss = null;
+  say((q.id === "feel" && !p.strong.length && !p.weak.length ? "Okay." : q.id === "limits" ? (p.limits.length ? `Got it. I'll go easy on your ${q.sum(p)}.` : "Good, nothing to work around.") : `Got it: ${q.sum(p)}.`) + extra);
+  const next = o.edit ? null : OB_Q[OB_Q.indexOf(q) + 1];
+  o.edit = false;
+  if (next) { o.q = next.id; say((next.pre || "") + next.ask); return; }
+  o.q = null; o.scroll = "recap";
+  if (!o.done) { o.done = true; if (!J().profile) say("That's everything. Here's what I've got, and the plan I built from it. Tap a line to change it."); }
+}
+
+// voice: the browser's speech recognition fills the answer and sends it when you stop talking
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function obListen() {
+  const o = S.onb;
+  if (rec) { rec.stop(); return; }
+  if (o.busy) return;
+  const base = (o.draft || "").trim(), r = rec = new SR();
+  r.lang = "en-US"; r.interimResults = true; r.continuous = false;
+  r.onresult = e => { o.draft = (base ? base + " " : "") + [...e.results].map(x => x[0].transcript).join("").trim(); const el = document.getElementById("obin"); if (el) el.value = o.draft; };
+  r.onerror = e => { r.failed = e.error; };
+  r.onend = () => {
+    if (rec === r) rec = null;
+    if (S.onb !== o || r.cancelled) return;
+    o.listening = false;
+    if (r.failed === "not-allowed" || r.failed === "service-not-allowed") toast("Lift Log can't use the microphone here. Type your answer instead.");
+    else if (r.failed && r.failed !== "no-speech" && r.failed !== "aborted") toast("Couldn't hear that. Try again, or type your answer.");
+    else if (o.draft.trim()) obSend();
+    else render();
+  };
+  try { r.start(); } catch { rec = null; toast("Voice input isn't available here. Type your answer instead."); return; }
+  o.listening = true; render();
+}
+function obStop() {
+  if (rec) { rec.cancelled = true; rec.abort(); rec = null; }
+  if (S.onb && S.onb.ctl) S.onb.ctl.abort();
+}
+
+function viewOnb() {
+  const o = S.onb, p = o.p;
+  let h = `<div class="chat">${o.log.map(m => `<div class="msg ${m.by}">${esc(m.text)}</div>`).join("")}${o.busy ? `<div class="msg app dots" role="status" aria-label="Lift Log is reading your answer"><i></i><i></i><i></i></div>` : ""}</div>`;
+  if (o.q) return h + `<div class="composer"><div class="wrap"><textarea id="obin" data-a="obdraft" rows="1" aria-label="Your answer" enterkeyhint="send" placeholder="${o.listening ? "Listening…" : "Your answer"}">${esc(o.draft)}</textarea>`
+    + (SR ? `<button class="round${o.listening ? " live" : ""}" data-a="oblisten" aria-label="${o.listening ? "Stop and send" : "Answer by voice"}" aria-pressed="${o.listening}">${ICON.mic}</button>` : "")
+    + `<button class="round primary" data-a="obsend" aria-label="Send"${o.busy ? " disabled" : ""}>${ICON.send}</button></div></div>`;
+  const r = buildPlan(p), bs = buildBench(p);
+  return h + `<section class="card stack" data-recap><h2>Your profile</h2><ul class="recap">${OB_Q.map(q => `<li><button data-a="obedit" data-q="${q.id}"><span class="label">${q.label}</span><span>${esc(upFirst(q.sum(p)))}</span><em>Change</em></button></li>`).join("")}</ul></section>
+    <section class="card stack"><h2>Your plan</h2><ul class="rules">${r.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul></section>
+    <section class="card stack"><h2>Your week</h2>${r.days.map(d => `<div class="dday"><b>${esc(d.name)}</b><ul class="exlist">${d.exercises.map(e => `<li><span${e.kind ? ' class="muted"' : ""}>${esc(e.name)}</span><span class="tgt">${e.kind ? "" : esc(exTarget(e) + (e.unit ? " " + e.unit : ""))}</span></li>`).join("")}</ul></div>`).join("")}</section>
+    <section class="card stack"><h2>Goals</h2>${p.goals.map(k => `<div class="dday"><b>${esc(goalName(k))}</b><ul class="rules">${goalMilestones(k, p).map(m => `<li>${esc(m.name)}</li>`).join("")}</ul></div>`).join("")}</section>
+    <section class="card stack"><h2>Benchmarks</h2><p class="muted small" style="margin:0">Tested every 6 weeks, always the same, so you can see your progress.</p><ul class="exlist">${bs.map(b => `<li><span>${esc(b.name)}</span><span class="tgt">${benchUnit({ unit: b.unit })}</span></li>`).join("")}</ul>
+    ${S.plan && S.plan.days.length ? `<label class="check"><input type="checkbox" data-a="obuseplan"${o.usePlan ? " checked" : ""}>Replace my current plan. You can restore the old one under Plan → Phases.</label>` : ""}</section>
+    <button class="btn primary big" data-a="obdone">${J().profile ? "Save" : "Start training"}</button>`;
 }
 function finishOnb() {
   const o = S.onb, first = !J().profile, hadPlan = !!(S.plan && S.plan.days.length);
+  obStop();
   applyProfile(o.p, o.usePlan || !hadPlan);
   S.onb = null; S.view = "train"; ls.set("liftlog.view", "train"); window.scrollTo(0, 0);
   toast(first ? "Your plan is ready." : o.usePlan || !hadPlan ? "Profile saved and plan rebuilt." : "Profile saved.");
 }
 
 /* ---------- views ---------- */
-function topbar(title, gear) { return `<header class="topbar"><div class="wrap"><h1>${ICON.mark}${esc(title)}</h1><div class="tbr">${syncHTML()}${gear ? `<button class="iconbtn" data-a="settings" aria-label="Settings">${ICON.gear}</button>` : ""}</div></div></header>`; }
+function topbar(title, gear, extra = "") { return `<header class="topbar"><div class="wrap"><h1>${ICON.mark}${esc(title)}</h1><div class="tbr">${syncHTML()}${extra}${gear ? `<button class="iconbtn" data-a="settings" aria-label="Settings">${ICON.gear}</button>` : ""}</div></div></header>`; }
 function navHTML() {
   const t = [["train", "Train", ICON.train], ["history", "History", ICON.hist], ["progress", "Progress", ICON.prog], ["plan", "Plan", ICON.plan]];
   return `<nav class="tabs"><div class="wrap">${t.map(([k, l, i]) => `<button data-a="view" data-v="${k}" class="${S.view === k ? "on" : ""}" aria-current="${S.view === k ? "page" : "false"}">${i}${l}</button>`).join("")}</div></nav>`;
@@ -1194,13 +1473,13 @@ function viewTrain() {
   if (S.justFinished && S.sessions.get(S.justFinished)) h += finishedCard(S.sessions.get(S.justFinished));
   if (!S.plan || !S.plan.days.length) {
     return h + `<div class="card empty stack"><h2>Set up your plan</h2><p class="muted">Answer a few questions about you, your sport history and your goals, and Lift Log builds your plan, goals and benchmarks.</p>
-      ${J().profile ? `<button class="btn primary big" data-a="rebuild">Build my plan</button>` : `<button class="btn primary big" data-a="obstart">Start the questionnaire</button>`}<button class="btn" data-a="blankplan">Build my own</button></div>`;
+      ${J().profile ? `<button class="btn primary big" data-a="rebuild">Build my plan</button>` : `<button class="btn primary big" data-a="obstart">Answer a few questions</button>`}<button class="btn" data-a="blankplan">Build my own</button></div>`;
   }
   const ws = weekStats(), js = journeyStats(), nd = nextDay(), wt = Number(S.plan.weeklyTarget) || 0;
   h += `<section class="card strip"><div><span class="label">This week</span><b>${ws.thisWeek}${wt ? `<span class="muted"> / ${wt}</span>` : ""}</b></div>
     <div><span class="label">Streak</span><b>${ws.cur} <span class="muted">wk</span></b></div>
     <button data-a="gototrophies" aria-label="Level ${js.level}, ${fmtInt(js.toNext)} XP to the next level"><span class="label">Level</span><b>${js.level}</b><span class="meter"><i style="width:${js.pct}%"></i></span></button></section>`;
-  if (!J().profile) h += `<section class="card stack" style="border-color:var(--accent)"><h2>Tell Lift Log about you</h2><p class="muted small" style="margin:0">A few questions about your body, sport history, goals and week. Your goals, benchmarks and plan are then set from your answers.</p><button class="btn primary" data-a="obstart">Start the questionnaire</button></section>`;
+  if (!J().profile) h += `<section class="card stack" style="border-color:var(--accent)"><h2>Tell Lift Log about you</h2><p class="muted small" style="margin:0">A few questions about your body, sport history, goals and week. Your goals, benchmarks and plan are then set from your answers.</p><button class="btn primary" data-a="obstart">Answer a few questions</button></section>`;
   const td = testDay();
   if (td && testDue() && S.pickDay !== td.id) h += `<section class="card stack" style="border-color:var(--accent)"><h2>Test due</h2><p class="muted small" style="margin:0">${finished().some(isTestSession) ? "It's been 6 weeks since your last test." : "Set your baseline."} Do ${esc(td.name || "the test day")} in place of one regular workout this week. +${XP.test} XP.</p><button class="btn" data-a="pickday" data-id="${td.id}">Show ${esc(td.name || "test day")}</button></section>`;
   const pick = S.pickDay && findDay(S.pickDay) || nd;
@@ -1364,7 +1643,7 @@ function progGoals() {
       ${st.total ? `<div class="meter${st.done ? " good" : ""}"><i style="width:${Math.round(st.n / st.total * 100)}%"></i></div>` : ""}
       <ul class="mslist">${st.ms.map(x => msItem(g, x, st)).join("") || '<li class="muted small">No milestones yet.</li>'}</ul>${own}</section>`;
   }
-  if (!p) return h + `<section class="card stack"><p class="muted small" style="margin:0">To pick goals, answer a few questions about you first. Lift Log sets their milestones and benchmarks from your answers.</p><button class="btn primary" data-a="obstart">Start the questionnaire</button></section>`;
+  if (!p) return h + `<section class="card stack"><p class="muted small" style="margin:0">To pick goals, answer a few questions about you first. Lift Log sets their milestones and benchmarks from your answers.</p><button class="btn primary" data-a="obstart">Answer a few questions</button></section>`;
   const act = p.goals, built = S.plan && S.plan.goalKeys, stale = built && built.join() !== act.join();
   return h + `<section class="card stack"><details class="more"${gs.length && !S.goalsOpen ? "" : " open"}><summary>Change goals</summary><div class="stack"><p class="muted small" style="margin:0">Pick up to three. Their milestones are set from your profile and tick themselves when you log them.</p>
     <div class="opts">${GOALS.filter(([k]) => k !== "pullup" || p.pull < 2 || act.includes(k)).map(([k, n, d]) => { const on = act.includes(k), g = all.find(x => x.key === k); return `<button class="opt${on ? " on" : ""}" data-a="goaltog" data-k="${k}" aria-pressed="${on}"><b>${esc(n)}${g && goalState(g).done ? " · reached" : ""}</b><span>${esc(d)}</span></button>`; }).join("")}</div></div></details>
@@ -1454,7 +1733,7 @@ function aliasHTML(name) {
 /* ---------- plan: goals, benchmarks, phases ---------- */
 function profileCard() {
   const p = J().profile;
-  if (!p) return `<section class="card stack"><h2>Your profile</h2><p class="muted small" style="margin:0">Answer a few questions and Lift Log sets your goals, benchmarks and plan from them.</p><button class="btn primary" data-a="obstart">Start the questionnaire</button></section>`;
+  if (!p) return `<section class="card stack"><h2>Your profile</h2><p class="muted small" style="margin:0">Answer a few questions and Lift Log sets your goals, benchmarks and plan from them.</p><button class="btn primary" data-a="obstart">Answer a few questions</button></section>`;
   return `<section class="card stack"><div class="row between"><h2>Your profile</h2><button class="btn sm" data-a="obstart">Retake</button></div><ul class="rules">${profileLines(p).map(l => `<li>${esc(l)}</li>`).join("")}</ul></section>`;
 }
 function phasesEditor() {
@@ -1679,7 +1958,7 @@ function viewPlan() {
   if (!S.planLoaded) return `<div class="card empty"><h2>Loading</h2></div>`;
   const seg = segHTML("plantab", S.planTab, [["plan", "Workouts"], ["phases", "Phases"]]);
   if (S.planTab === "phases") return seg + phasesEditor() + phasesTable();
-  if (!S.plan) return seg + `<div class="card empty stack"><h2>No plan yet</h2><p class="muted">Lift Log builds it from your answers about you, your sport history and your goals.</p>${J().profile ? `<button class="btn primary big" data-a="rebuild">Build my plan</button>` : `<button class="btn primary big" data-a="obstart">Start the questionnaire</button>`}<button class="btn" data-a="blankplan">Build my own</button></div>`;
+  if (!S.plan) return seg + `<div class="card empty stack"><h2>No plan yet</h2><p class="muted">Lift Log builds it from your answers about you, your sport history and your goals.</p>${J().profile ? `<button class="btn primary big" data-a="rebuild">Build my plan</button>` : `<button class="btn primary big" data-a="obstart">Answer a few questions</button>`}<button class="btn" data-a="blankplan">Build my own</button></div>`;
   const why = S.plan.why || [], rules = S.plan.rules || [];
   let h = seg;
   if (why.length || rules.length) h += `<section class="card"><details class="more"><summary>About this plan</summary><div class="stack">
@@ -1719,8 +1998,16 @@ function render() {
   renderQueued = false; memo.clear();
   if (!S.onb && needsOnb()) S.onb = newOnb();
   if (S.onb) {
-    app.innerHTML = topbar(J().profile ? "Profile" : "Welcome") + `<main class="wrap">${viewOnb()}</main>` + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : "");
-    document.body.style.overflow = ""; return;
+    const o = S.onb, later = !!J().profile || !!(S.plan && S.plan.days.length) || finished().length > 0, ae = document.activeElement, hadFocus = !!ae && ae.id === "obin";
+    app.innerHTML = topbar(J().profile ? "Profile" : "Welcome", false, later ? `<button class="linkbtn" data-a="oblater">${J().profile ? "Cancel" : "Not now"}</button>` : "") + `<main class="wrap">${viewOnb()}</main>` + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : "");
+    document.body.style.overflow = "";
+    const inp = document.getElementById("obin");
+    if (inp && (hadFocus || o.focus)) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+    o.focus = false;
+    if (o.scroll === "end") window.scrollTo(0, document.documentElement.scrollHeight);
+    else if (o.scroll === "recap") app.querySelector(".chat .msg:last-child")?.scrollIntoView({ block: "start" });
+    o.scroll = null;
+    return;
   }
   const titles = { train: activeSession() ? "Workout" : "Train", history: "History", progress: "Progress", plan: "Plan" };
   const body = { train: viewTrain, history: viewHistory, progress: viewProgress, plan: viewPlan }[S.view]();
@@ -1842,30 +2129,16 @@ app.addEventListener("click", e => {
     case "retry": retryAll(); break;
     case "settings": S.settings = true; render(); break;
     case "closesettings": S.settings = false; S.advOpen = false; render(); break;
-    case "obstart": S.onb = newOnb(); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
-    case "oblater": S.onb = null; S.onbLater = true; window.scrollTo(0, 0); render(); break;
-    case "obset": {
-      const p = S.onb.p, k = b.dataset.k; p[k] = OB_NUM.includes(k) ? Number(b.dataset.v) : b.dataset.v;
-      if (k === "pull" && p.pull >= 2) p.goals = p.goals.filter(x => x !== "pullup");
-      render(); break;
+    case "obstart": obStop(); S.onb = newOnb(); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
+    case "oblater": obStop(); S.onb = null; S.onbLater = true; window.scrollTo(0, 0); render(); break;
+    case "obsend": if (rec) rec.stop(); else obSend(); break;
+    case "oblisten": obListen(); break;
+    case "obedit": {
+      const o = S.onb, q = OB_Q.find(x => x.id === b.dataset.q);
+      o.q = q.id; o.edit = true; o.miss = null; o.focus = true; o.scroll = "end";
+      o.log.push({ by: "app", text: q.ask }); render(); break;
     }
-    case "obtog": {
-      const p = S.onb.p, k = b.dataset.k, v = b.dataset.v, on = p[k].includes(v);
-      if (!v) p[k] = [];
-      else if (on) p[k] = p[k].filter(x => x !== v);
-      else if (k === "goals" && p.goals.length >= 2) { toast("Pick up to two for now. You can add another later under Progress → Goals."); return; }
-      else {
-        p[k] = k === "sports" ? (v === "none" ? ["none"] : [...p[k].filter(x => x !== "none"), v]) : [...p[k], v];
-        if (k === "strong") p.weak = p.weak.filter(x => x !== v); else if (k === "weak") p.strong = p.strong.filter(x => x !== v);
-      }
-      render(); break;
-    }
-    case "obback": S.onb.step--; window.scrollTo(0, 0); render(); break;
-    case "obnext": {
-      const msg = obMissing(S.onb); if (msg) { toast(msg); return; }
-      if (S.onb.step === OB_STEPS.length - 1) { finishOnb(); return; }
-      S.onb.step++; window.scrollTo(0, 0); render(); break;
-    }
+    case "obdone": finishOnb(); break;
     case "goaltog": {
       const p = clone(jr.profile), k = b.dataset.k, on = p.goals.includes(k);
       if (on && p.goals.length === 1) { toast("Keep at least one goal."); return; }
@@ -1965,14 +2238,14 @@ app.addEventListener("click", e => {
   }
 });
 
+// the answer box keeps focus (and the phone keyboard stays up) when you tap send or the mic
+app.addEventListener("mousedown", e => { if (e.target.closest('[data-a="obsend"], [data-a="oblisten"]')) e.preventDefault(); });
 app.addEventListener("input", e => {
   const t = e.target, a = t.dataset.a; if (!a) return;
   memo.clear();
-  if (a === "obnum") {
-    const p = S.onb.p, k = t.dataset.k, v = parseNum(t.value);
-    if (k === "cm") p.heightCm = v; else if (k === "kg") p.weightKg = v; else if (k === "lb") p.weightKg = v == null ? null : v / 2.20462;
-    else if (k === "age") p.age = v == null ? null : Math.round(v);
-    else { const ft = parseNum(document.getElementById("ob-ft").value), inch = parseNum(document.getElementById("ob-in").value) || 0; p.heightCm = ft == null ? null : (ft * 12 + inch) * 2.54; }
+  if (a === "obdraft") {
+    S.onb.draft = t.value;
+    if (!CSS.supports("field-sizing", "content")) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }
   }
   else if (a === "phname") { curPhase().name = t.value; saveJourney(); }
   else if (a === "phfocus") { curPhase().focus = t.value; saveJourney(); }
@@ -2020,6 +2293,7 @@ app.addEventListener("change", e => {
 });
 app.addEventListener("keydown", e => {
   const t = e.target;
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing && t.id === "obin") { e.preventDefault(); obSend(); return; }
   if (e.key === "Enter" && t.tagName === "INPUT") {
     if (t.id && t.id.startsWith("addex-")) { e.preventDefault(); t.parentElement.querySelector("button").click(); return; }
     if (t.dataset.a === "w") { e.preventDefault(); const r = document.getElementById(t.id.replace(/^w-/, "r-")); if (r) r.focus(); return; }

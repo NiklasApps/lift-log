@@ -1670,11 +1670,11 @@ function newOnb(fresh) {
     if (coachOn()) {
       // Claude leads: open questions, follow-ups on what you say, then it fits the plan to you
       o.q = "chat";
-      hi(`Hi. I'm going to get to know you a bit, then build your plan, goals and benchmarks. Answer in your own words${SR ? ", typed or spoken" : ""}, as much or as little as you like.`);
+      hi(`Hi. I'm going to get to know you a bit, then build your plan, goals and benchmarks. Answer in your own words${voiceWay()}, as much or as little as you like.`);
       o.log.push({ by: "app", text: "Tell me about yourself and your training so far. What have you done, and what made you want to start now?" });
     } else {
       o.q = OB_Q[0].id;
-      hi(`Hi. I'll ask you a few questions and build your plan, goals and benchmarks from your answers. Just answer in your own words${SR ? ", typed or spoken" : ""}.`);
+      hi(`Hi. I'll ask you a few questions and build your plan, goals and benchmarks from your answers. Just answer in your own words${voiceWay()}.`);
       o.log.push({ by: "app", text: OB_Q[0].pre + OB_Q[0].ask });
     }
   }
@@ -1859,39 +1859,62 @@ function obReply(o, q, got) {
   if (!o.done) { o.done = true; if (!J().profile || o.fresh) say("That's everything. Here's what I've got, and the plan I built from it. Tap a line to change it."); }
 }
 
-// voice: the browser's speech recognition fills the answer and sends it when you stop talking
+// voice: the browser's speech recognition fills the answer and sends it when you stop talking.
+// On iPhone and iPad it switches the microphone on but often returns no text and doesn't stop,
+// so there the keyboard's own dictation (its microphone key) does the job instead.
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const VOICE = !!SR && !IOS;
+const voiceWay = () => VOICE ? ", typed or spoken" : IOS ? ", typed or spoken with your keyboard's microphone" : "";
 let rec = null;
+// ends listening whether or not the browser reports it: the answer heard so far is sent
+function endListen(r, send) {
+  if (r.ended) return; r.ended = true;
+  clearTimeout(r.quiet); clearTimeout(r.force);
+  if (rec === r) rec = null;
+  const o = r.o; if (S.onb !== o || r.cancelled) return;
+  o.listening = false;
+  if (r.failed === "not-allowed" || r.failed === "service-not-allowed") toast("Lift Log can't use the microphone here. Type your answer instead.");
+  else if (r.failed && r.failed !== "no-speech" && r.failed !== "aborted") toast("Couldn't hear that. Try again, or type your answer.");
+  else if (send && o.draft.trim()) { obSend(); return; }
+  else if (!r.heard) toast("Didn't catch anything. Try again, or type your answer.");
+  render();
+}
+function stopListen() {
+  const r = rec; if (!r) return;
+  try { r.stop(); } catch {}
+  // if the browser doesn't confirm within a second, cut the microphone off
+  r.force = setTimeout(() => { try { r.abort(); } catch {} endListen(r, true); }, 1000);
+}
 function obListen() {
   const o = S.onb;
-  if (rec) { rec.stop(); return; }
-  if (o.busy) return;
+  if (rec) { stopListen(); return; }
+  if (o.busy || !VOICE) return;
   const base = (o.draft || "").trim(), r = rec = new SR();
-  r.lang = "en-US"; r.interimResults = true; r.continuous = false;
-  r.onresult = e => { o.draft = (base ? base + " " : "") + [...e.results].map(x => x[0].transcript).join("").trim(); const el = document.getElementById("obin"); if (el) el.value = o.draft; };
-  r.onerror = e => { r.failed = e.error; };
-  r.onend = () => {
-    if (rec === r) rec = null;
-    if (S.onb !== o || r.cancelled) return;
-    o.listening = false;
-    if (r.failed === "not-allowed" || r.failed === "service-not-allowed") toast("Lift Log can't use the microphone here. Type your answer instead.");
-    else if (r.failed && r.failed !== "no-speech" && r.failed !== "aborted") toast("Couldn't hear that. Try again, or type your answer.");
-    else if (o.draft.trim()) obSend();
-    else render();
+  r.o = o; r.lang = "en-US"; r.interimResults = true; r.continuous = false;
+  const quiet = ms => { clearTimeout(r.quiet); r.quiet = setTimeout(stopListen, ms); };
+  r.onresult = e => {
+    r.heard = true; quiet(4000);
+    o.draft = (base ? base + " " : "") + [...e.results].map(x => x[0].transcript).join("").trim();
+    const el = document.getElementById("obin"); if (el) el.value = o.draft;
   };
+  r.onerror = e => { r.failed = e.error; };
+  r.onend = () => endListen(r, true);
   try { r.start(); } catch { rec = null; toast("Voice input isn't available here. Type your answer instead."); return; }
+  // nothing heard for 8 seconds: stop instead of listening forever
+  quiet(8000);
   o.listening = true; render();
 }
 function obStop() {
-  if (rec) { rec.cancelled = true; rec.abort(); rec = null; }
+  if (rec) { const r = rec; r.cancelled = true; try { r.abort(); } catch {} endListen(r, false); }
   if (S.onb && S.onb.ctl) S.onb.ctl.abort();
 }
 
 function viewOnb() {
   const o = S.onb, p = o.p;
   let h = `<div class="chat">${o.log.map(m => `<div class="msg ${m.by}">${esc(m.text)}</div>`).join("")}${o.busy ? `<div class="msg app dots" role="status" aria-label="Lift Log is reading your answer"><i></i><i></i><i></i></div>` : ""}</div>`;
-  if (o.q) return h + `<div class="composer"><div class="wrap"><textarea id="obin" data-a="obdraft" rows="1" aria-label="Your answer" enterkeyhint="send" placeholder="${o.listening ? "Listening…" : "Your answer"}">${esc(o.draft)}</textarea>`
-    + (SR ? `<button class="round${o.listening ? " live" : ""}" data-a="oblisten" aria-label="${o.listening ? "Stop and send" : "Answer by voice"}" aria-pressed="${o.listening}">${ICON.mic}</button>` : "")
+  if (o.q) return h + `<div class="composer"><div class="wrap"><textarea id="obin" data-a="obdraft" rows="1" aria-label="Your answer" enterkeyhint="send" placeholder="${o.listening ? "Listening… tap the microphone to stop" : IOS ? "Your answer, or tap the keyboard's microphone" : "Your answer"}">${esc(o.draft)}</textarea>`
+    + (VOICE ? `<button class="round${o.listening ? " live" : ""}" data-a="oblisten" aria-label="${o.listening ? "Stop and send" : "Answer by voice"}" aria-pressed="${o.listening}">${ICON.mic}</button>` : "")
     + `<button class="round primary" data-a="obsend" aria-label="Send"${o.busy ? " disabled" : ""}>${ICON.send}</button></div></div>`;
   const { plan: r, changed, tl } = obPlan(o), bs = buildBench(p);
   return h + `<section class="card stack" data-recap><h2>Your profile</h2><ul class="recap">${obQs(p).map(q => `<li><button data-a="obedit" data-q="${q.id}"><span class="label">${q.label}</span><span>${esc(upFirst(q.sum(p)))}</span><em>Change</em></button></li>`).join("")}</ul></section>
@@ -2626,7 +2649,7 @@ app.addEventListener("click", e => {
     case "closesettings": S.settings = false; S.advOpen = false; render(); break;
     case "obstart": obStop(); S.onb = newOnb(!!b.dataset.fresh); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
     case "oblater": obStop(); S.onb = null; S.onbLater = true; window.scrollTo(0, 0); render(); break;
-    case "obsend": if (rec) rec.stop(); else obSend(); break;
+    case "obsend": if (rec) stopListen(); else obSend(); break;
     case "oblisten": obListen(); break;
     case "obedit": {
       const o = S.onb, q = OB_Q.find(x => x.id === b.dataset.q);

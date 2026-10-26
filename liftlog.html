@@ -450,6 +450,9 @@ function resolveEx(e) {
   return x;
 }
 const exTarget = e => e.kind === "metcon" ? "" : e.sets ? e.sets + " × " + (e.reps || "") : (e.reps || "");
+// EMOM: each set starts on the minute, so the rest is whatever is left of that minute, not a fixed time
+const isEmom = e => /\bemom\b/i.test(e.reps || e.target || "");
+const restTxt = e => isEmom(e) ? "every minute" : e.rest ? "rest " + mmss(e.rest * 1000) : "";
 
 /* ---------- state ---------- */
 const S = {
@@ -1840,7 +1843,7 @@ function editorHTML(s, live) {
     h += `<section class="ex${complete ? " complete" : ""}" data-ex="${i}">
       <div class="exhead"><h3>${esc(ex.name)}${pr ? '<span class="pr">PR</span>' : ""}</h3>${ex.target ? `<span class="tgt">${esc(ex.target)}</span>` : ""}</div>
       <div class="last">${ld ? `Start with ${fmt(ex.load)} ${u}, from your starting test` : last ? `Last time, ${shortDate(last.date)}: ${last.sets.map(st => fmt(st.w) + "×" + st.r).join(", ")}` : "First time logging this"}</div>${note}
-      ${ex.rest && live ? `<button class="restbtn" data-a="rest" data-sec="${ex.rest}">Rest ${mmss(ex.rest * 1000)}</button>` : ""}
+      ${!live ? "" : isEmom(ex) ? (ex.emomAt || ex.sets.some(x => x.done) ? "" : `<button class="restbtn" data-a="emomstart" data-i="${i}">Start EMOM clock</button>`) : ex.rest ? `<button class="restbtn" data-a="rest" data-sec="${ex.rest}">Rest ${mmss(ex.rest * 1000)}</button>` : ""}
       <div class="sets"><div class="colhead"><span>Set</span><span>Weight</span><span>${esc(ru)}</span><span></span></div>`;
     ex.sets.forEach((st, j) => {
       const ref = last ? (last.sets[j] || last.sets[last.sets.length - 1]) : null;
@@ -2236,7 +2239,7 @@ function coachHTML(c) {
 function draftHTML(c) {
   const d = c.draft, known = knownExercises(), isNew = n => !known.some(k => same(k, n)), gl = J().goals || [], td = planTestDay();
   return `<div class="draft stack"><span class="label">Claude's draft</span><h3>${esc(d.name || "New plan")}</h3>${d.focus ? `<span class="muted small">${esc(d.focus)}</span>` : ""}${d.summary ? `<p class="small" style="margin:0">${esc(d.summary)}</p>` : ""}
-    ${d.days.map(day => `<div class="dday"><b>${esc(day.name)}</b>${day.note ? `<span class="muted small">${esc(day.note)}</span>` : ""}<ul class="exlist">${day.exercises.map(e => `<li><span>${esc(e.name)}${isNew(e.name) ? ' <span class="tag acc">new</span>' : ""}${e.note ? `<br><span class="muted small">${esc(e.note)}</span>` : ""}</span><span class="tgt">${e.sets} × ${esc(e.reps)}${e.unit ? " " + e.unit : ""}${e.rest ? `<br><span class="small">rest ${mmss(e.rest * 1000)}</span>` : ""}</span></li>`).join("")}</ul></div>`).join("")}
+    ${d.days.map(day => `<div class="dday"><b>${esc(day.name)}</b>${day.note ? `<span class="muted small">${esc(day.note)}</span>` : ""}<ul class="exlist">${day.exercises.map(e => `<li><span>${esc(e.name)}${isNew(e.name) ? ' <span class="tag acc">new</span>' : ""}${e.note ? `<br><span class="muted small">${esc(e.note)}</span>` : ""}</span><span class="tgt">${e.sets} × ${esc(e.reps)}${e.unit ? " " + e.unit : ""}${restTxt(e) ? `<br><span class="small">${restTxt(e)}</span>` : ""}</span></li>`).join("")}</ul></div>`).join("")}
     ${d.goals.length ? `<span class="label">Goals</span>${d.goals.map(g => `<div class="dday"><b>${esc(g.name)}</b><span class="muted small">${gl.some(x => norm(x.name) === norm(g.name)) ? "Updates your goal. Milestones you've reached stay." : "New goal"}</span><ul class="rules">${g.milestones.map(m => `<li>${esc(m.name)}${m.ex && m.target ? ` <span class="num">(${esc(m.ex)}: ${fmt(m.target)} ${esc(metU(m.metric))})</span>` : ""}</li>`).join("")}</ul></div>`).join("")}` : ""}
     ${d.rules.length ? `<span class="label">How to progress</span><ul class="rules">${d.rules.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
     ${td ? `<p class="muted small" style="margin:0">${esc(td.name || "Your test day")} and your benchmarks stay as they are, so this phase stays comparable.</p>` : ""}
@@ -2316,7 +2319,7 @@ function dayReadHTML(d, di) {
   d.exercises.forEach((e0, ei) => {
     const e = resolveEx(e0); if (!e.name.trim()) return;
     const u = e.unit && e.unit !== "reps" ? " " + e.unit : "", t = exTarget(e);
-    const tgt = e.kind ? "" : `<span class="tgt">${esc(t + (t ? u : ""))}${e.rest ? `<small>rest ${mmss(e.rest * 1000)}</small>` : ""}</span>`;
+    const tgt = e.kind ? "" : `<span class="tgt">${esc(t + (t ? u : ""))}${restTxt(e) ? `<small>${restTxt(e)}</small>` : ""}</span>`;
     const head = blockHead(d, ei);
     if (head) rows.push(`</ul>${head}<ul class="exlist">`);
     rows.push(`<li><span${e.kind === "info" ? ' class="muted"' : ""}>${esc(e.name)}${e.note ? `<br><span class="muted small">${esc(e.note)}</span>` : ""}${e.kind === "metcon" && e.wod ? `<span class="wod">${esc(e.wod)}</span>` : ""}</span>${tgt}</li>`);
@@ -2428,6 +2431,8 @@ function restBase(ex, st) {
 function restFor(s, i, j) {
   const exs = s.exercises, ex = exs[i], st = ex.sets[j], lifts = exs.filter(e => !e.kind);
   if (lifts.every(e => e.sets.every(x => x.done))) return 0; // workout's done, nothing to rest for
+  // EMOM sets left: count down to the next full minute since the EMOM started (Start EMOM clock, or the first ticked set)
+  if (isEmom(ex) && ex.sets.some(x => !x.done)) { const at = ex.emomAt || (ex.emomAt = Date.now()), now = Date.now(); return (at + (Math.floor((now - at) / 60000) + 1) * 60000 - now) / 1000; }
   let sec = restBase(ex, st);
   // missed the bottom of the target rep range: that set was a grind, so rest a bit longer
   const lo = parseInt(String(ex.target || "").split("×").pop(), 10);
@@ -2440,14 +2445,14 @@ function restFor(s, i, j) {
   return Math.min(600, Math.max(30, Math.round(sec / 15) * 15));
 }
 let actx = null;
-function startRest(sec) {
+function startRest(sec, emom = false) {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.resume) actx.resume(); } catch { actx = null; }
-  S.restAt = Date.now(); S.restLen = Number(sec) || 90; S.restBeeped = false;
+  S.restAt = Date.now(); S.restLen = Number(sec) || 90; S.restBeeped = false; S.restEmom = emom;
 }
 const restLeft = () => S.restLen * 1000 - (Date.now() - S.restAt);
 const restOver = () => restLeft() <= 0;
 const restText = () => restOver() ? "0:00" : mmss(restLeft() + 999);
-const restLabel = () => restOver() ? "Next set" : "Rest";
+const restLabel = () => restOver() ? "Next set" : S.restEmom ? "Next round" : "Rest";
 function beep() {
   try { if (actx) [0, .25, .5].forEach(o => { const g = actx.createGain(), os = actx.createOscillator(); os.frequency.value = 880; g.gain.value = .15; os.connect(g).connect(actx.destination); os.start(actx.currentTime + o); os.stop(actx.currentTime + o + .15); }); } catch {}
   try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch {}
@@ -2596,7 +2601,7 @@ app.addEventListener("click", e => {
         if (st.w == null && b.dataset.phw) st.w = parseNum(b.dataset.phw);
         if (st.r == null && b.dataset.phr) st.r = parseNum(b.dataset.phr);
         if (!(st.r > 0)) { const inp = document.getElementById(`r-${s.id}-${i}-${j}`); if (inp) inp.focus(); toast("Enter the reps first."); return; }
-        st.done = true; if (!S.sheetId) { const sec = restFor(s, i, j); if (sec) startRest(sec); else S.restAt = null; }
+        st.done = true; if (!S.sheetId) { const ex = s.exercises[i], sec = restFor(s, i, j); if (sec) startRest(sec, isEmom(ex) && ex.sets.some(x => !x.done)); else S.restAt = null; }
       } else st.done = false;
       saveSession(s, 300); render(); break;
     }
@@ -2613,6 +2618,7 @@ app.addEventListener("click", e => {
     case "finish": finishWorkout(s); break;
     case "restoff": S.restAt = null; render(); break;
     case "rest": startRest(b.dataset.sec); render(); break;
+    case "emomstart": s.exercises[+b.dataset.i].emomAt = Date.now(); saveSession(s, 0); startRest(60, true); render(); break;
     case "restplus": if (restOver()) { S.restAt = Date.now(); S.restLen = 30; } else S.restLen += 30; S.restBeeped = false; render(); break;
     case "arm": {
       const id = b.dataset.id;

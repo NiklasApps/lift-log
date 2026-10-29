@@ -1215,6 +1215,74 @@ function buildUpper(p) {
 }
 // the main press, shared with the benchmarks so both use the same name
 const upperPress = () => ["Bench press", "Dumbbell bench press", "Dumbbell floor press", "Machine chest press", "Push-ups"];
+// the original Upper Body Plan, as first set up; its tests use the benchmark names so starting test results carry over
+function originalPlan() {
+  const ex = (block, name, sets, reps, rest, note, more = {}) => ({ id: uid(), block, name, sets, reps, ...(rest ? { rest } : {}), ...(note ? { note } : {}), ...more });
+  const info = (block, name, reps, note) => ({ id: uid(), block, name, kind: "info", sets: 0, reps, note });
+  const slot = (block, s) => ({ id: uid(), block, slot: s, name: "", sets: 0, reps: "" });
+  const metcon = (block, name, wod, note) => ({ id: uid(), block, name, kind: "metcon", sets: 0, reps: "", wod, note });
+  const days = [
+    { name: "Day A · Heavy Push & Pull", note: "Strength day. Long rests, heavy compounds.", exercises: [
+      info("Warm-up · 8 min", "Row or bike + shoulder prep", "8 min", "Band pull-aparts, scap pull-ups, light shoulder external rotation."),
+      ex("Strength", "Bench press", 4, "5-6", 150, "Last rep hard but clean."),
+      slot("Strength", "strict"),
+      ex("Strength", "Overhead press", 3, "6-8", 120, "Strict press, glutes tight."),
+      ex("Strength", "Dumbbell row", 3, "8-10 / side", 90, "Pause at the hip."),
+      ex("Legs & core", "Back squat or goblet squat", 3, "5-8", 120, "Moderate, not to failure. Heels on a small plate if your ankles limit depth."),
+      ex("Legs & core", "Farmer carries", 3, "30-40", 90, "Heavy dumbbells or kettlebells, tall posture, short quick steps. Trains grip, trunk and legs.", { unit: "m" }),
+      ex("Arms & shoulders", "Triceps pushdown", 3, "10-12", 60, "Superset with curls."),
+      ex("Arms & shoulders", "Dumbbell biceps curls", 3, "10-12", 60),
+      ex("Arms & shoulders", "Face pulls", 3, "15", 60, "Shoulder health. Pull to the eyes, thumbs back.")] },
+    { name: "Day B · Gymnastics & Metcon", note: "CrossFit day. Skill when fresh, then a short hard piece.", exercises: [
+      info("Warm-up · 12 min", "Overhead mobility", "2 rounds", "Bench T-spine extension 10 reps · banded lat stretch 30 s / side · wall slides 10 reps. Opens the hollow and arch positions for the kip."),
+      info("Warm-up · 12 min", "Hang, kip swings, hollow holds", "8 min", "3 rounds: 20 s hang, 8 kip swings, 20 s hollow hold, 10 air squats."),
+      slot("Skill", "kip"),
+      slot("Skill", "ttb"),
+      ex("Strength", "Dips", 4, "6-10", 120, "Add weight once 4 × 10 is easy."),
+      ex("Strength", "Lat pulldown", 3, "10-12", 90, "Controlled. Extra pulling volume without fatigue from the bar."),
+      metcon("Metcon", "AMRAP 12", "5 {pull}\n8 {ttb}\n10 push-ups\n12 wall balls (or air squats)", "Pick a pace you can hold. Write down rounds + reps."),
+      ex("Grip & shoulder care", "Dead hangs", 2, "max", 90, "Full grip, shoulders active. Log your longer hang. Grip usually limits TTB and kipping before the lats do.", { unit: "sec" }),
+      ex("Grip & shoulder care", "Lateral raises", 3, "12-15", 60, "Light, slow on the way down."),
+      ex("Grip & shoulder care", "Shoulder external rotation", 2, "15 / side", 45, "Cable or band.")] },
+    { name: "Day C · Volume Upper & Legs", note: "Hypertrophy day. Moderate weights, more reps, plus a posterior chain lift.", exercises: [
+      info("Warm-up · 8 min", "Bike + band work", "8 min", "Easy pace, then 2 × 15 band pull-aparts and 2 × 10 push-ups."),
+      ex("Main", "Strict pull-ups or chest to bar (volume)", 3, "max −1", 120, "Strict. Stop one rep before failure. Level 1: band-assisted."),
+      ex("Main", "Incline bench press (barbell or DB)", 3, "8-10", 120, "Lighter than Day A."),
+      ex("Main", "Machine row", 3, "10-12", 90, "Squeeze 1 s at the chest."),
+      ex("Legs", "Romanian deadlift or walking lunges", 3, "8-10", 120, "Hamstrings and glutes. Moderate."),
+      ex("Accessories", "Pec fly (butterfly machine)", 3, "12-15", 60, "Full stretch, slow."),
+      ex("Accessories", "Overhead triceps extension", 3, "12", 60, "Superset with barbell curls."),
+      ex("Accessories", "Barbell curls", 3, "10", 60),
+      ex("Accessories", "Sit-ups", 3, "15", 45, "Or GHD sit-ups if you have them."),
+      metcon("Finisher", "For time · 21-15-9", "Dumbbell push press\n{ttb}\n(cap 8 min)", "Short and fast.")] },
+    { name: "Test Week", test: true, note: "Every 6 weeks, in place of one regular session. Come in fresh and test in this order.", exercises: [
+      info("Warm-up · 12 min", "Full warm-up + overhead mobility", "12 min", "Bike 5 min, T-spine and lat stretches, 2 easy sets of pull-ups and push-ups."),
+      ex("Tests", "Bench press", 4, "3", 180, "3RM: sets of 3, add 5 kg then 2.5 kg. Stop when a rep slows a lot. Use a spotter.", { test: "bench" }),
+      ex("Tests", "Strict pull-ups", 1, "max", 240, "Max reps. Dead hang start, chin over bar, no kip. Rest at least 4 min after bench.", { test: "pull", unit: "reps" }),
+      ex("Tests", "Toes to bar", 1, "max", 180, "Max unbroken. Count only reps where both feet touch the bar. Set ends when you drop.", { test: "ttb", unit: "reps" }),
+      info("Easy finish", "Face pulls + lateral raises", "2 × 15 each", "Light pump, then go home.")] }
+  ].map(d => ({ id: uid(), ...d }));
+  return { level: "3", weeklyTarget: 3, days, rules: [
+    "Strength lifts: when you hit the top of the rep range on every set, add 2.5 kg next time.",
+    "Strict before kipping, always. Kipping is a skill on top of strength, not a replacement for it.",
+    "Move up a pull-up level when you can do the current level's sets with clean form two sessions in a row.",
+    "Keep 1–2 reps in reserve on accessories. Metcons are hard but stop when form breaks.",
+    "Every 6th week: same exercises, half the sets (deload). Do the Test session that week in place of one regular day."] };
+}
+// switches to the original plan; the starting test still sets the pull-up level and working weights
+function useOriginalPlan() {
+  const p = J().profile, np = originalPlan();
+  if (S.plan && S.plan.gear) np.gear = S.plan.gear.slice();
+  if (p && p.tested) {
+    np.level = levelFor(p);
+    // "Back squat or goblet squat" takes the tested weight of its first choice; test days get none
+    const days = np.days.filter(d => !d.test), full = new Map();
+    for (const d of days) for (const e of d.exercises) { const m = e.name.match(/^(.+?) or /); if (m) { full.set(e, e.name); e.name = m[1]; } }
+    setLoads({ days }, p);
+    for (const [e, n] of full) e.name = n;
+  }
+  setPlan(np);
+}
 function planRules(p) {
   const u = units(), R = [];
   if (p.experience === "new" || p.experience === "under1") R.push("First two weeks: pick weights that leave 3 reps in the tank and learn the movements.");
@@ -2287,7 +2355,9 @@ function settingsHTML() {
     const usesLevel = S.plan.days.some(d => d.exercises.some(e => e.slot || /\{(pull|ttb)\}/.test(e.wod || "")));
     h += `<section class="card stack"><h2>Training</h2><div class="row between"><label class="label" for="wtarget">Workouts per week</label><input class="textin" id="wtarget" data-a="wtarget" inputmode="numeric" value="${S.plan.weeklyTarget || ""}" placeholder="–" style="flex:0 0 72px;text-align:center"></div>
       ${usesLevel ? `<label class="label" for="level">Your pull-up level</label><select class="sel" id="level" data-a="level">${Object.entries(LEVELS).map(([k, L]) => `<option value="${k}"${(S.plan.level || "3") === k ? " selected" : ""}>${esc(L.label)}</option>`).join("")}</select>
-      <p class="muted small" style="margin:0">${esc(level().note)} The pull-up and toes-to-bar exercises in your plan change with the level.</p>` : ""}</section>`;
+      <p class="muted small" style="margin:0">${esc(level().note)} The pull-up and toes-to-bar exercises in your plan change with the level.</p>` : ""}
+      <div class="row between"><span class="small">Original Upper Body Plan</span>${armBtn("origplan", "Use it", "Tap again to switch", "btn sm")}</div>
+      <p class="muted small" style="margin:0">Days A, B, C and Test Week as first set up. Your workouts and starting test results stay. The current plan is kept under Plan → Phases.</p></section>`;
     h += gearHTML();
   }
   const u = imperial() ? "imperial" : "metric";
@@ -2629,6 +2699,7 @@ app.addEventListener("click", e => {
       else if (kind === "discard") { deleteSession(x); S.restAt = null; toast("Workout discarded."); return; }
       else if (kind === "delsess") { deleteSession(x); S.sheetId = null; toast("Workout deleted."); return; }
       else if (kind === "rmgoal") { jr.goals = jr.goals.filter(g => g.id !== x); saveJourney(0); }
+      else if (kind === "origplan") { useOriginalPlan(); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to the original Upper Body Plan."); return; }
       else if (kind === "skiptest") { delete S.plan.start; S.pickDay = null; savePlan(0); toast("Test skipped. Pick weights that leave 2 reps in reserve."); return; }
       render(); break;
     }

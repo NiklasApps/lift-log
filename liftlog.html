@@ -64,14 +64,14 @@ body {
   background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.4;
   -webkit-tap-highlight-color: transparent;
 }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .num { font-variant-numeric: tabular-nums; }
 
 .wrap { max-width: 640px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); }
+/* Sticks at 0 and pads itself under the status bar: sticking at the inset pushed it down over the content. */
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); }
 .topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px 10px; }
 .topbar h1 { font-family: var(--f-display); font-stretch: var(--wd); font-weight: 800; font-size: 26px; letter-spacing: 0; margin: 0; text-transform: uppercase; line-height: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .topbar h1 .mark { width: 30px; height: 30px; flex: none; }
@@ -256,7 +256,7 @@ select.sel { width: 100%; height: 48px; border: 1px solid var(--line); border-ra
 .pexhead span { text-align: center; }
 
 /* sheet */
-.sheet { position: fixed; inset: 0; z-index: 40; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.sheet { position: fixed; inset: 0; z-index: 40; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom, 0px); }
 .sheet .topbar { top: 0; }
 .sheet main.wrap { padding-bottom: 40px; }
 .datein { height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 0 10px; font-size: 16px; }
@@ -2094,7 +2094,7 @@ function progLifts() {
   const val = p => metric === "e1rm" ? p.e1rm : metric === "top" ? p.top : metric === "vol" ? p.vol : p.maxR;
   const unitL = metric === "vol" ? u + " × reps" : metric === "reps" ? "reps" : u;
   const pts = hist.map(p => ({ x: parseDay(p.date).getTime(), y: val(p) }));
-  let h = `<section class="card stack"><label class="label" for="progex">Exercise</label><select class="sel" id="progex" data-a="progex">${exs.map(e => `<option value="${esc(e.name)}"${e === cur ? " selected" : ""}>${esc(e.name)} (${e.n})</option>`).join("")}</select>
+  let h = `<section class="card stack"><label class="label" for="progex">Exercise</label><select class="sel" id="progex" data-a="progex">${exs.map(e => `<option value="${esc(e.name)}"${e === cur ? " selected" : ""}>${esc(e.name)} · ${e.n} ${e.n === 1 ? "workout" : "workouts"}</option>`).join("")}</select>
     ${bw ? `<p class="muted small" style="margin:0">Logged without weight, so this shows your most reps in a set.</p>` : `<div class="seg" role="tablist">${[["e1rm", "Est. 1RM"], ["top", "Heaviest"], ["vol", "Volume"]].map(([k, l]) => `<button role="tab" aria-selected="${metric === k}" class="${metric === k ? "on" : ""}" data-a="metric" data-m="${k}">${l}</button>`).join("")}</div>`}
     ${aliasHTML(cur.name)}</section>`;
   const best = hist.reduce((a, p) => val(p) > val(a) ? p : a, hist[0]);

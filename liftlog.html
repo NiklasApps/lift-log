@@ -2364,7 +2364,52 @@ function settingsHTML() {
   h += `<section class="card"><details class="more"${S.advOpen ? " open" : ""}><summary>Advanced</summary><div class="stack"><span class="label">Units</span>
     <div class="seg">${[["metric", "Metric · kg, cm"], ["imperial", "Imperial · lb, ft"]].map(([k, l]) => `<button class="${u === k ? "on" : ""}" data-a="units" data-u="${k}">${l}</button>`).join("")}</div>
     <p class="muted small" style="margin:0">Changes the labels only. Weights you already logged stay as you typed them.</p></div></details></section>`;
+  h += `<section class="card stack" id="yourdata"><h2>Your data</h2>
+    <p class="muted small" style="margin:0">A backup holds your plan, phases, goals and every workout. Use it to move to another device or to the iPhone app.</p>
+    <div class="row"><button class="btn sm" data-a="backup">Save backup</button><button class="btn sm" data-a="backupcopy">Copy backup</button></div>
+    <span class="label">Restore</span>
+    <div class="row"><label class="btn sm">Choose file<input type="file" accept=".json,application/json,text/plain" data-a="restorefile" hidden></label></div>
+    <textarea class="textarea" data-a="restoretext" placeholder="Or paste a backup here">${esc(S.restoreText || "")}</textarea>
+    <div class="row"><button class="btn sm" data-a="restore">Restore pasted backup</button></div>
+    <p class="muted small" style="margin:0">Restoring replaces your plan and goals with the backup's and adds its workouts. Where both have the same workout, the newer one stays.</p></section>`;
   return h;
+}
+
+/* ---------- backup: one JSON file with everything, for moving between devices ---------- */
+const backupText = () => JSON.stringify({ app: "liftlog", version: 1, exportedAt: new Date().toISOString(), plan: S.plan, journey: S.journey, sessions: allSessions() });
+const nativeApp = () => window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.liftlog;
+async function saveBackup() {
+  const name = "lift-log-" + ymd(new Date()) + ".json", text = backupText();
+  // the iPhone app shows its own share sheet: web views can't download files
+  if (nativeApp()) { nativeApp().postMessage({ type: "share", name, text }); return; }
+  const file = new File([text], name, { type: "application/json" });
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+function copyBackup() {
+  const ok = () => toast("Backup copied. Paste it under Restore on the other device."), fail = () => toast("Couldn't copy. Use Save backup instead.");
+  try { navigator.clipboard.writeText(backupText()).then(ok, fail); } catch { fail(); }
+}
+function restoreBackup(text) {
+  let d = null; try { d = JSON.parse(String(text || "").trim()); } catch {}
+  if (!d || d.app !== "liftlog" || !Array.isArray(d.sessions)) { toast("That isn't a Lift Log backup."); return; }
+  if (d.plan) { S.plan = clone(d.plan); savePlan(0); }
+  if (d.journey) { S.journey = clone(d.journey); saveJourney(0); }
+  let added = 0, updated = 0;
+  for (const s of d.sessions) {
+    if (!s || !s.id) continue;
+    const cur = S.sessions.get(s.id);
+    if (cur && (cur.updatedAt || 0) >= (s.updatedAt || 0)) continue;
+    cur ? updated++ : added++;
+    // spread the writes out so the cloud log isn't hit with hundreds at once
+    saveSession(clone(s), 200 + (added + updated) * 60);
+  }
+  fixJourney();
+  S.restoreText = ""; S.onb = null;
+  toast(`Backup restored: ${added} workout${added === 1 ? "" : "s"} added, ${updated} updated.`);
 }
 
 function viewPlan() {
@@ -2447,7 +2492,7 @@ function render() {
   if (!S.onb && needsOnb()) S.onb = newOnb();
   if (S.onb) {
     const o = S.onb, later = !!J().profile || !!(S.plan && S.plan.days.length) || finished().length > 0;
-    app.innerHTML = topbar(J().profile ? "Profile" : "Welcome", false, later ? `<button class="linkbtn" data-a="oblater">${J().profile ? "Cancel" : "Not now"}</button>` : "") + `<main class="wrap">${viewOnb()}</main>` + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : "");
+    app.innerHTML = topbar(J().profile ? "Profile" : "Welcome", false, later ? `<button class="linkbtn" data-a="oblater">${J().profile ? "Cancel" : "Not now"}</button>` : `<button class="linkbtn" data-a="restoreopen">Restore backup</button>`) + `<main class="wrap">${viewOnb()}</main>` + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : "");
     document.body.style.overflow = "";
     // a new question puts the cursor in its first field, but only with a mouse: on a phone the keyboard would cover the choices
     const inp = o.focus && matchMedia("(pointer: fine)").matches && app.querySelector(".qcard input, .qcard textarea");
@@ -2526,11 +2571,14 @@ const restLabel = () => restOver() ? "Next set" : S.restEmom ? "Next round" : "R
 function beep() {
   try { if (actx) [0, .25, .5].forEach(o => { const g = actx.createGain(), os = actx.createOscillator(); os.frequency.value = 880; g.gain.value = .15; os.connect(g).connect(actx.destination); os.start(actx.currentTime + o); os.stop(actx.currentTime + o + .15); }); } catch {}
   try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch {}
+  if (nativeApp()) nativeApp().postMessage({ type: "haptic" });
 }
 
-let wakeLock = null;
+let wakeLock = null, nativeAwake = false;
 async function updateWakeLock() {
   const want = !!activeSession() && document.visibilityState === "visible";
+  // the iPhone app keeps the screen on itself
+  if (nativeApp()) { if (want !== nativeAwake) { nativeAwake = want; nativeApp().postMessage({ type: "awake", on: want }); } return; }
   try {
     if (want && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); }
     else if (!want && wakeLock) { await wakeLock.release(); wakeLock = null; }
@@ -2578,6 +2626,10 @@ app.addEventListener("click", e => {
     case "view": S.view = b.dataset.v; ls.set("liftlog.view", S.view); window.scrollTo(0, 0); render(); break;
     case "retry": retryAll(); break;
     case "settings": S.settings = true; render(); break;
+    case "backup": saveBackup(); break;
+    case "backupcopy": copyBackup(); break;
+    case "restore": restoreBackup(S.restoreText); break;
+    case "restoreopen": obStop(); S.onb = null; S.onbLater = true; S.settings = true; render(); { const el = document.getElementById("yourdata"); if (el) el.scrollIntoView({ block: "start" }); } break;
     case "closesettings": S.settings = false; S.advOpen = false; render(); break;
     case "obstart": obStop(); S.onb = newOnb(!!b.dataset.fresh); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
     case "oblater": obStop(); S.onb = null; S.onbLater = true; window.scrollTo(0, 0); render(); break;
@@ -2733,6 +2785,7 @@ app.addEventListener("input", e => {
   else if (a === "coachnotes") S.coach.notes = t.value;
   else if (a === "coachdays") { const n = parseInt(t.value, 10); if (n >= 1 && n <= 7) S.coach.days = n; }
   else if (a === "coachmin") { const n = parseInt(t.value, 10); if (n >= 15 && n <= 240) S.coach.minutes = n; }
+  else if (a === "restoretext") S.restoreText = t.value;
   else if (a === "npname") S.phaseForm.name = t.value;
   else if (a === "npfocus") S.phaseForm.focus = t.value;
   else if (a === "score") {
@@ -2770,6 +2823,7 @@ app.addEventListener("change", e => {
   }
   else if (a === "level") { S.plan.level = t.value; savePlan(0); render(); }
   else if (a === "swapkeep") S.swapKeep = t.checked;
+  else if (a === "restorefile" && t.files && t.files[0]) t.files[0].text().then(restoreBackup, () => toast("Couldn't read that file."));
   else if (a === "sdate") { const s = editingSession(); if (s && /^\d{4}-\d{2}-\d{2}$/.test(t.value)) { s.date = t.value; saveSession(s, 0); render(); } }
 });
 app.addEventListener("keydown", e => {

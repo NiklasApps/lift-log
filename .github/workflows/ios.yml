@@ -1,0 +1,172 @@
+# Builds the iPhone app on a GitHub macOS runner (no Mac needed locally).
+# With the App Store Connect secrets set (apps/ios/README.md) it signs the
+# app with Apple's cloud-managed certificate and uploads it to TestFlight;
+# without them it builds an unsigned .ipa as an artifact.
+# Runs when the app or liftlog.html changes, or by hand.
+name: iOS app
+
+on:
+  push:
+    paths: ["apps/ios/**", "liftlog.html", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Intel runner: the arm64 macOS runners were often out of capacity
+    # (jobs dropped after 15 min in the queue).
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/ios
+    env:
+      SIGNED: ${{ secrets.ASC_KEY_P8 != '' }}
+      # Build numbers must grow with every upload.
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      # App Store Connect only takes builds made with Xcode 26 or later.
+      - name: Select Xcode 26
+        run: |
+          ls -d /Applications/Xcode*.app
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          [ -n "$XCODE" ] || { echo "No Xcode 26 on this runner"; exit 1; }
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build without signing
+        if: env.SIGNED != 'true'
+        run: |
+          xcodebuild build \
+            -project LiftLog.xcodeproj -scheme LiftLog -configuration Release \
+            -sdk iphoneos -destination "generic/platform=iOS" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=$BUILD_NUMBER
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/LiftLog.app Payload/
+          zip -qr LiftLog.ipa Payload
+      - uses: actions/upload-artifact@v4
+        if: env.SIGNED != 'true'
+        with:
+          name: LiftLog-ipa
+          path: apps/ios/LiftLog.ipa
+          retention-days: 14
+
+      - name: Archive, sign and upload to TestFlight
+        if: env.SIGNED == 'true'
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+        run: |
+          # Own distribution certificate (made by orthotics-platform/apps/ios/tools/make_signing_certificate.py, one per team)
+          # in a temporary keychain: the re-signing below needs its private key.
+          [ -n "$DIST_CERT_P12" ] || { echo "Secret DIST_CERT_P12 missing: copy it from the orthotics-platform repo (apps/ios/README.md)"; exit 1; }
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          printf '%s' "$DIST_CERT_P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security import "$RUNNER_TEMP/dist.p12" -k "$KEYCHAIN" -P "$DIST_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/dist.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          # A secret set from Windows may carry CR line ends or a byte order mark.
+          printf '%s\n' "$ASC_KEY_P8" | tr -d '\r' | sed '1s/^\xEF\xBB\xBF//' > "$KEY"
+          head -1 "$KEY" | grep -q -- "-----BEGIN PRIVATE KEY-----" \
+            || { echo "ASC_KEY_P8 is not the .p8 file's text:" \
+                   "$(wc -l < "$KEY") lines, $(wc -c < "$KEY") bytes, starts" \
+                   "$(head -c 12 "$KEY" | xxd -p)"; exit 1; }
+          AUTH=(-allowProvisioningUpdates
+                -authenticationKeyPath "$KEY"
+                -authenticationKeyID "$ASC_KEY_ID"
+                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          # Archive unsigned: development signing creates a certificate per
+          # runner whose private key is gone on the next one. Only the export
+          # signs, for distribution, with Apple's cloud-managed certificate.
+          xcodebuild archive \
+            -project LiftLog.xcodeproj -scheme LiftLog -configuration Release \
+            -destination "generic/platform=iOS" -archivePath build/LiftLog.xcarchive \
+            DEVELOPMENT_TEAM="$TEAM_ID" CURRENT_PROJECT_VERSION=$BUILD_NUMBER \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>testFlightInternalTestingOnly</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          # Xcode's detailed export logs, kept as an artifact for debugging.
+          keep_logs() { mkdir -p "$RUNNER_TEMP/distlogs"; cp -R "$TMPDIR"/*.xcdistributionlogs "$RUNNER_TEMP/distlogs/" 2>/dev/null || true; }
+          xcodebuild -exportArchive "${AUTH[@]}" \
+            -archivePath build/LiftLog.xcarchive \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath build/export \
+            || { keep_logs; exit 1; }
+          keep_logs
+
+          # Which certificate signed the exported app (must be Apple Distribution).
+          unzip -q -o build/export/LiftLog.ipa -d build/ipa
+          codesign -dvv build/ipa/Payload/LiftLog.app 2>&1 | grep -E "Authority|TeamIdentifier"
+          codesign -dvv build/ipa/Payload/LiftLog.app 2>&1 | grep -q "Authority=Apple Distribution" \
+            || { echo "The export is not signed for distribution"; exit 1; }
+
+          # Apple bug: with a non-ASCII certificate name (the "ö" in the
+          # account holder's name) the designated requirement Xcode writes
+          # holds the name in another Unicode form than the certificate, and
+          # App Store Connect rejects the signature (ITMS-90035). Re-sign with
+          # a requirement naming the team ID (ASCII) instead of the name.
+          APP=build/ipa/Payload/LiftLog.app
+          codesign -d -r- "$APP" 2>&1 | grep designated
+          codesign --verify --strict -vv "$APP" || echo "(Xcode's signature fails its own requirement)"
+          security find-identity -v -p codesigning
+          IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Distribution" | head -1 | awk '{print $2}')
+          [ -n "$IDENTITY" ] || { echo "No distribution identity in the keychain to re-sign with"; exit 1; }
+          # The embedded profile must list the certificate we re-sign with.
+          security cms -D -i "$APP/embedded.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          /usr/libexec/PlistBuddy -c "Print Name" "$RUNNER_TEMP/profile.plist"
+          PROFILE_CERTS=$(for i in $(seq 0 9); do
+            /usr/libexec/PlistBuddy -c "Print DeveloperCertificates:$i" "$RUNNER_TEMP/profile.plist" 2>/dev/null \
+              | openssl x509 -inform der -noout -fingerprint -sha1 2>/dev/null | sed 's/.*=//; s/://g'
+          done)
+          echo "Profile certificates: $PROFILE_CERTS; signing with: $IDENTITY"
+          echo "$PROFILE_CERTS" | grep -qi "$IDENTITY" \
+            || { echo "The export's profile does not contain our certificate"; exit 1; }
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
+          codesign -d --entitlements - --xml "$APP" > "$RUNNER_TEMP/entitlements.plist"
+          codesign --force --sign "$IDENTITY" --generate-entitlement-der \
+            --entitlements "$RUNNER_TEMP/entitlements.plist" \
+            --requirements "=designated => anchor apple generic and identifier \"$BUNDLE_ID\" and certificate leaf[subject.OU] = \"$TEAM_ID\" and certificate 1[field.1.2.840.113635.100.6.2.1] /* exists */" \
+            "$APP"
+          codesign --verify --strict -vv "$APP"
+          (cd build/ipa && rm -f ../LiftLog-signed.ipa && zip -qry ../LiftLog-signed.ipa .)
+
+          # altool finds the key by its file name in ~/.appstoreconnect/private_keys.
+          mkdir -p ~/.appstoreconnect/private_keys
+          cp "$KEY" ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+          xcrun altool --upload-app -f build/LiftLog-signed.ipa -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/upload.log"
+          rm -f "$KEY" ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+          # altool can exit 0 after a failed upload.
+          ! grep -q "UPLOAD FAILED" "$RUNNER_TEMP/upload.log"
+      - uses: actions/upload-artifact@v4
+        if: always() && env.SIGNED == 'true'
+        with:
+          name: export-logs
+          path: ${{ runner.temp }}/distlogs
+          if-no-files-found: ignore
+          retention-days: 7

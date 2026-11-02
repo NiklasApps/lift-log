@@ -7,6 +7,8 @@ to it through `window.webkit.messageHandlers.liftlog`:
 | Message | What the app does |
 |---|---|
 | `{type: "haptic"}` | Vibrates when the rest is over. |
+| `{type: "restAlarm", at, emom}` | Schedules a notification with sound for the end of the rest (`at`, ms since 1970; 0 cancels), so it sounds with the phone locked or in another app. Silent while the app is open: the page beeps itself. |
+| `{type: "weekly", last}` | Date of the latest logged workout. Schedules the next 6 Wednesdays at 20:00 (`Notify.swift`), skipping this week once a workout is logged since Monday. |
 | `{type: "awake", on}` | Keeps the screen on during a workout. |
 | `{type: "share", name, text}` | Opens the share sheet with the backup file. |
 | `{type: "claude", id, tier, messages}` | Asks Claude (Messages API, streamed) and answers through `window.__liftlogClaude(id, event)`. |

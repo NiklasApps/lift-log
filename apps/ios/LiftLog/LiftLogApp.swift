@@ -1,7 +1,12 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct LiftLogApp: App {
+    init() {
+        UNUserNotificationCenter.current().delegate = NotifyDelegate.shared
+    }
+
     var body: some Scene {
         WindowGroup {
             WebView()

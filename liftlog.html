@@ -169,9 +169,9 @@ main.wrap { padding-block: 4px calc(var(--nav-h) + 96px); display: flex; flex-di
 /* rest bar */
 .restbar { position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); z-index: 25; pointer-events: none; }
 .restbar .wrap { display: flex; justify-content: center; padding-block: 0 10px; }
-.restbar .pill { pointer-events: auto; background: var(--ink); color: var(--bg); border-radius: 999px; padding: 8px 8px 8px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
-.restbar b { font-family: var(--f-display); font-stretch: var(--wd); font-size: 24px; font-variant-numeric: tabular-nums; min-width: 3.2em; }
-.restbar button { border: 0; background: color-mix(in srgb, var(--bg) 18%, transparent); color: var(--bg); border-radius: 999px; min-height: 36px; padding: 0 14px; font-weight: 600; }
+.restbar .pill { pointer-events: auto; background: var(--ink); color: var(--bg); border-radius: 999px; padding: 10px 10px 10px 22px; display: flex; align-items: center; gap: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.restbar b { font-family: var(--f-display); font-stretch: var(--wd); font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; min-width: 3.2em; }
+.restbar button { border: 0; background: color-mix(in srgb, var(--bg) 18%, transparent); color: var(--bg); border-radius: 999px; min-height: 44px; padding: 0 16px; font-weight: 600; }
 
 /* nav */
 nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 26; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -1186,7 +1186,7 @@ function buildUpper(p) {
     kip ? info("Hang, kip swings, hollow holds", "8 min", "3 rounds: 20 s hang, 8 kip swings, 20 s hollow hold, 10 air squats.", "Warm-up") : null,
     ...skill,
     ex("dips", ["Dips", "Ring dips", "Bench dips", "Close-grip push-ups"], 4, "6-10", 120, "Add weight once 4 × 10 is easy.", "Strength"),
-    ex("vpull", p.pull >= 3 ? ["Lat pulldown", "Chest to bar pull-ups", "Strict pull-ups"] : ["Lat pulldown", "Band-assisted pull-ups"], 3, p.pull >= 3 && !(G.has("cables") || G.has("machines")) ? "5-8" : "10-12", 90, "Controlled. Extra pulling volume without fatigue from the bar.", "Strength"),
+    ex("vpull", p.pull >= 3 ? ["Lat pulldown", "Strict pull-ups"] : ["Lat pulldown", "Band-assisted pull-ups"], 3, p.pull >= 3 && !(G.has("cables") || G.has("machines")) ? "5-8" : "10-12", 90, "Controlled. Extra pulling volume without fatigue from the bar.", "Strength"),
     n === 2 ? ex("hinge", hinge, 3, "8-10", 120, "Hamstrings and glutes. Moderate.", "Legs") : null,
     met ? metcon("AMRAP 12", `5 ${pullW}\n8 ${kip ? "{ttb}" : "sit-ups"}\n10 push-ups\n12 ${squatTo}`, "Pick a pace you can hold. Write down rounds + reps.", "Metcon") : null,
     G.has("bar") ? ex("carry", ["Dead hangs"], 2, "max", 90, "Full grip, shoulders active. Log your longer hang." + (kip ? " Grip usually limits toes to bar and kipping before the lats do." : ""), "Grip & shoulder care") : null,
@@ -1265,7 +1265,7 @@ function originalPlan() {
       ex("Grip & shoulder care", "Shoulder external rotation", 2, "15 / side", 45, "Cable or band.")] },
     { name: "Day C · Volume Upper & Legs", note: "Hypertrophy day. Moderate weights, more reps, plus a posterior chain lift.", exercises: [
       info("Warm-up · 8 min", "Bike + band work", "8 min", "Easy pace, then 2 × 15 band pull-aparts and 2 × 10 push-ups."),
-      ex("Main", "Strict pull-ups or chest to bar (volume)", 3, "max −1", 120, "Strict. Stop one rep before failure. Level 1: band-assisted."),
+      ex("Main", "Strict pull-ups (volume)", 3, "max −1", 120, "Strict, no kip. Stop one rep before failure. Level 1: band-assisted."),
       ex("Main", "Incline bench press (barbell or DB)", 3, "8-10", 120, "Lighter than Day A."),
       ex("Main", "Machine row", 3, "10-12", 90, "Squeeze 1 s at the chest."),
       ex("Legs", "Romanian deadlift or walking lunges", 3, "8-10", 120, "Hamstrings and glutes. Moderate."),
@@ -1934,9 +1934,13 @@ function editorHTML(s, live) {
       <div class="sets"><div class="colhead"><span>Set</span><span>Weight</span><span>${esc(ru)}</span><span></span></div>`;
     ex.sets.forEach((st, j) => {
       const ref = last ? (last.sets[j] || last.sets[last.sets.length - 1]) : null;
-      const prevInSess = j > 0 ? ex.sets[j - 1] : null;
-      const phW = ref ? fmt(ref.w) : prevInSess && prevInSess.w != null ? fmt(prevInSess.w) : ld ? fmt(ex.load) : "";
-      const phR = ref ? ref.r : prevInSess && prevInSess.r != null ? prevInSess.r : (ex.target ? String(ex.target).split("×").pop().trim().split(/[-–]/)[0].trim() : "");
+      // the nearest earlier set in this workout with that field filled in
+      const prevIn = k => { for (let x = j - 1; x >= 0; x--) if (ex.sets[x][k] != null && ex.sets[x][k] !== "") return ex.sets[x][k]; return null; };
+      const pw = prevIn("w"), phW = ref ? fmt(ref.w) : pw != null ? fmt(pw) : ld ? fmt(ex.load) : "";
+      // reps hint: last time's reps, but never below the bottom of the target range ("5 / side" → 5, "max" → none)
+      const lo = ((String(ex.target || "").split("×").pop().match(/^\s*(\d+)/) || [])[1]) || "";
+      const prevR = ref ? ref.r : prevIn("r");
+      const phR = prevR == null ? lo : +lo > +prevR ? lo : prevR;
       h += `<div class="setrow${st.done ? " isdone" : ""}">
         <span class="n">${j + 1}</span>
         <label class="field"><input id="w-${s.id}-${i}-${j}" inputmode="decimal" enterkeyhint="next" autocomplete="off" data-a="w" data-i="${i}" data-j="${j}" value="${st.w ?? ""}" placeholder="${esc(phW)}" aria-label="Set ${j + 1} weight in ${u}"><span>${u}</span></label>
@@ -2763,7 +2767,7 @@ function render() {
   let h = topbar(titles[S.view], true, S.view === "coach" && (J().chat || {}).msgs?.length && !S.chat.busy ? armBtn("chatclear", "New chat", "Tap to clear", "linkbtn") : "");
   h += `<main class="wrap">${body}</main>`;
   if (S.view === "coach" && chatOn()) h += composerHTML();
-  if (S.restAt && activeSession() && S.view === "train") h += `<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b><button data-a="restplus">+30 s</button><button data-a="restoff">Hide</button></div></div></div>`;
+  if (S.restAt && activeSession() && S.view === "train") h += `<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b><button data-a="restoff">Hide</button></div></div></div>`;
   h += navHTML();
   if (S.sheetId && S.sessions.get(S.sheetId)) {
     const s = S.sessions.get(S.sheetId);
@@ -2780,7 +2784,7 @@ function render() {
   if (sheetScroll != null) { const sh = app.querySelector(".sheet"); if (sh) sh.scrollTop = sheetScroll; }
   document.body.style.overflow = S.sheetId || S.settings ? "hidden" : "";
   if (S.chatScroll && S.view === "coach") { S.chatScroll = false; window.scrollTo(0, document.body.scrollHeight); }
-  updateWakeLock();
+  updateWakeLock(); syncNative();
 }
 let toastT;
 function toast(msg) { S.toast = msg; clearTimeout(toastT); toastT = setTimeout(() => { S.toast = null; const t = app.querySelector(".toast"); if (t) t.remove(); }, 2600); render(); }
@@ -2794,6 +2798,16 @@ setInterval(() => {
     const l = app.querySelector("[data-restl]"); if (l) l.textContent = restLabel();
   }
 }, 250);
+// the iPhone app sounds the rest alarm when the phone is locked or in another app, and sends the Wednesday reminder
+let sentRest = null, sentLast = null;
+function syncNative() {
+  const n = nativeApp(); if (!n) return;
+  const end = S.restAt && activeSession() ? Math.round(S.restAt + S.restLen * 1000) : 0;
+  if (end !== sentRest) { sentRest = end; n.postMessage({ type: "restAlarm", at: end > Date.now() ? end : 0, emom: !!S.restEmom }); }
+  if (!S.sessionsLoaded) return;
+  const last = (finished()[0] || {}).date || "";
+  if (last !== sentLast) { sentLast = last; n.postMessage({ type: "weekly", last }); }
+}
 
 /* rest timer: always counts down. The length comes from the plan's rest time, or from the set itself
    (heavier, lower-rep sets need longer), then adjusts for how hard the set was and what comes next. */
@@ -2816,11 +2830,8 @@ function restFor(s, i, j) {
   // missed the bottom of the target rep range: that set was a grind, so rest a bit longer
   const lo = parseInt(String(ex.target || "").split("×").pop(), 10);
   if (ex.unit !== "s" && ex.unit !== "m" && lo > 0 && st.r < lo) sec += 30;
-  // last set of this exercise: rest for the next one, plus time to set it up
-  if (ex.sets.every(x => x.done)) {
-    const nx = exs.slice(i + 1).concat(exs.slice(0, i)).find(e => !e.kind && e.sets.some(x => !x.done));
-    if (nx) sec = restBase(nx, nx.sets.find(x => !x.done) || {}) + 30;
-  }
+  // last set of this exercise: no timer, moving on to the next exercise is up to you
+  if (ex.sets.every(x => x.done)) return 0;
   return Math.min(600, Math.max(30, Math.round(sec / 15) * 15));
 }
 let actx = null;
@@ -3018,8 +3029,7 @@ app.addEventListener("click", e => {
     case "restoff": S.restAt = null; render(); break;
     case "rest": startRest(b.dataset.sec); render(); break;
     case "emomstart": s.exercises[+b.dataset.i].emomAt = Date.now(); saveSession(s, 0); startRest(60, true); render(); break;
-    case "restplus": if (restOver()) { S.restAt = Date.now(); S.restLen = 30; } else S.restLen += 30; S.restBeeped = false; render(); break;
-    case "arm": {
+        case "arm": {
       const id = b.dataset.id;
       if (S.armed !== id) { S.armed = id; render(); clearTimeout(window.__armT); window.__armT = setTimeout(() => { if (S.armed === id) { S.armed = null; render(); } }, 4000); return; }
       S.armed = null;

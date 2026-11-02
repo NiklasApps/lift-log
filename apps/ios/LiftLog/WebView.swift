@@ -41,6 +41,10 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         case "haptic":
             // Rest over: a full vibration, not a light tap, so it's felt with the phone on the bench.
             AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        case "restAlarm":
+            Notify.rest(at: (body["at"] as? NSNumber)?.doubleValue ?? 0, emom: body["emom"] as? Bool ?? false)
+        case "weekly":
+            Notify.weekly(last: body["last"] as? String ?? "")
         case "awake":
             UIApplication.shared.isIdleTimerDisabled = body["on"] as? Bool ?? false
         case "share":

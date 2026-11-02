@@ -143,6 +143,18 @@ main.wrap { padding-block: 4px calc(var(--nav-h) + 96px); display: flex; flex-di
 .ex.complete { border-color: var(--volt-edge); }
 .exhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .exhead h3 { margin: 0; font-size: 19px; font-weight: 600; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; }
+.topbar h1.demoh { font-size: 20px; overflow-wrap: anywhere; }
+.exname { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.exname svg { width: 17px; height: 17px; color: var(--muted); vertical-align: -2px; margin-left: 6px; }
+.demofig { display: flex; justify-content: center; color: var(--ink); }
+.demofig svg { width: 100%; max-width: 340px; height: auto; fill: none; stroke: currentColor; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.demofig.two svg { max-width: 48%; }
+.demofig .bk { opacity: .4; }
+.demofig .hd { fill: currentColor; stroke-width: 0; }
+.demofig .fl, .demofig .pr { stroke: var(--muted); stroke-width: 3; }
+.demofig .cb { stroke: var(--muted); stroke-width: 1.5; }
+.demofig .wt { fill: var(--surface-2); stroke: var(--muted); stroke-width: 3; }
+.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
 .exhead .tgt { color: var(--muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .last { font-size: 13px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .sugg { font-size: 13px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -424,6 +436,7 @@ const mmss = ms => { const t = Math.max(0, Math.floor(ms / 1000)); const h = Mat
 const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
 const ICON = {
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01" stroke-width="2.5"/></svg>',
   swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4"/></svg>',
   mark: '<svg class="mark" viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" rx="230" fill="#0d1b2b"/><g fill="none" stroke-width="66" stroke-linecap="round" stroke-linejoin="round"><path d="M180 619H362L431 495L545 704" stroke="#fff"/><path d="M545 704L814 434M680 434H814V570" stroke="#c7f431"/></g></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
@@ -1958,9 +1971,9 @@ function editorHTML(s, live) {
     const ds = doneSets(ex), complete = ex.sets.length && ex.sets.every(st => st.done);
     const pr = ds.length && isPR(ex.name, s, ex), sg = live ? suggestFor(ex, s) : null;
     h += `<section class="ex${complete ? " complete" : ""}" data-ex="${i}">
-      <div class="exhead"><h3>${esc(ex.name)}${pr ? '<span class="pr">PR</span>' : ""}</h3>${ex.target ? `<span class="tgt">${esc(ex.target)}</span>` : ""}</div>
+      <div class="exhead"><h3><button class="exname" data-a="demo" data-i="${i}" aria-label="How to do ${esc(ex.name)}">${esc(ex.name)}${ICON.info}</button>${pr ? '<span class="pr">PR</span>' : ""}</h3>${ex.target ? `<span class="tgt">${esc(ex.target)}</span>` : ""}</div>
       <div class="last">${ld ? `Start with ${fmt(ex.load)} ${u}, from your starting test` : last ? `Last time, ${shortDate(last.date)}: ${last.sets.map(st => fmt(st.w) + "×" + st.r).join(", ")}` : "First time logging this"}</div>
-      ${sg ? `<div class="sugg"><b>Today: ${sg.w ? fmt(sg.w) + " " + u + " × " : ""}${sg.r}${sg.w ? "" : " reps"}</b> <span>${esc(sg.why)}</span></div>` : ""}${note}
+      ${sg ? `<div class="sugg"><b>Today: ${sg.w ? fmt(sg.w) + " " + u + " × " : ""}${sg.r}${sg.w ? "" : " reps"}</b> <span>${esc(sg.why)}</span></div>` : ""}
       ${!live ? "" : isEmom(ex) ? (ex.emomAt || ex.sets.some(x => x.done) ? "" : `<button class="restbtn" data-a="emomstart" data-i="${i}">Start EMOM clock</button>`) : ex.rest ? `<button class="restbtn" data-a="rest" data-sec="${ex.rest}">Rest ${mmss(ex.rest * 1000)}</button>` : ""}
       <div class="sets"><div class="colhead"><span>Set</span><span>Weight</span><span>${esc(ru)}</span><span></span></div>`;
     ex.sets.forEach((st, j) => {
@@ -2609,28 +2622,39 @@ const growBox = t => { t.style.height = "auto"; t.style.height = Math.min(t.scro
 
 // swap panel: other exercises for the same movement; your equipment's first, others say what they need
 function swapHTML(e, live) {
-  const G = curGear(), opts = swapOpts(e, G), canKeep = live && S.swap && S.swap.pid && findPlanEx(S.swap.pid);
+  const G = curGear(), opts = swapOpts(e, G), pe = live && S.swap ? planExFor(editingSession(), S.swap.i) : null;
   return `<div class="swaps stack"><span class="label">Swap for</span>
     ${opts.length ? `<div class="chips">${opts.map(o => `<button class="chip${o.ok ? "" : " off"}" data-a="swapto" data-n="${esc(o.name)}">${esc(o.name)}${o.ok ? "" : `<small>needs ${esc(gearNeeds(o.need, G).join(", "))}</small>`}</button>`).join("")}</div>`
       : `<p class="muted small" style="margin:0">No suggestions for this one.</p>`}
     <div class="addex"><input id="swapin" class="textin" list="exnames-swap" placeholder="Or type another exercise" autocomplete="off" enterkeyhint="done" aria-label="Another exercise"><button class="btn" data-a="swapto">Use</button></div>
     <datalist id="exnames-swap">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>
-    ${canKeep ? `<label class="check"><input type="checkbox" data-a="swapkeep"${S.swapKeep !== false ? " checked" : ""}>Also change it in my plan</label>` : live ? `<p class="muted small" style="margin:0">Changes today's workout only.</p>` : ""}
+    ${live ? `<p class="muted small" style="margin:0">${pe ? "Changes today's workout and this day in your plan." : "Changes today's workout only."}</p>` : ""}
     <p class="muted small" style="margin:0">Missing equipment? Set what your gym has under Settings, and Lift Log swaps the rest for you.</p></div>`;
 }
 const findPlanEx = id => { for (const d of (S.plan ? S.plan.days : [])) { const e = d.exercises.find(x => x.id === id); if (e) return e; } return null; };
+// the plan exercise a workout exercise came from: by id, or by name on the workout's day (plans rebuilt since keep the day)
+function planExFor(s, i) {
+  const ex = s && s.exercises[i]; if (!ex || ex.kind) return null;
+  const byId = ex.pid && findPlanEx(ex.pid); if (byId) return byId;
+  const d = s.dayId && findDay(s.dayId);
+  return d && !d.test && !d.start ? d.exercises.find(e => !e.kind && norm(resolveEx(e).name) === norm(ex.name)) || null : null;
+}
 function doSwap(name) {
   const sw = S.swap; if (!sw || !name) return;
   const m = moveBy(name), opt = { name: m ? m.name : name, note: m && m.note, unit: m && m.unit };
   if (sw.i != null) {
     const s = editingSession(), ex = s && s.exercises[sw.i]; if (!ex) return;
-    const old = ex.name; applySwap(ex, opt); saveSession(s, 0);
-    const pe = sw.pid && S.swapKeep !== false && findPlanEx(sw.pid);
-    if (pe) { applySwap(pe, opt); savePlan(0); }
+    // a swap mid-workout sticks: the next time this day comes up, it has the new exercise
+    const pe = planExFor(s, sw.i), old = ex.name; applySwap(ex, opt); saveSession(s, 0);
+    if (pe) { applySwap(pe, opt); if (!ex.pid && pe.id) ex.pid = pe.id; savePlan(0); }
     toast(`${old} → ${opt.name}${pe ? ", also in your plan." : " for today."}`);
   } else {
     const e = S.plan.days[sw.d].exercises[sw.e], old = resolveEx(e).name;
-    applySwap(e, opt); savePlan(0); toast(`${old} → ${opt.name}.`);
+    // and a swap in the plan reaches today's workout if it's that day
+    const a = activeSession(), ai = a ? a.exercises.findIndex((x, k) => planExFor(a, k) === e) : -1;
+    applySwap(e, opt); savePlan(0);
+    if (ai >= 0) { applySwap(a.exercises[ai], opt); saveSession(a, 0); }
+    toast(`${old} → ${opt.name}${ai >= 0 ? ", also in today's workout." : "."}`);
   }
   S.swap = null; render();
 }
@@ -2805,6 +2829,8 @@ function render() {
     const s = S.sessions.get(S.sheetId);
     h += `<div class="sheet" role="dialog" aria-modal="true" aria-label="Edit workout"><header class="topbar"><div class="wrap"><h1>Edit</h1><button class="btn sm primary" data-a="closesheet">Done</button></div></header><main class="wrap">${editorHTML(s, false)}</main></div>`;
   } else S.sheetId = null;
+  // how-to sheet: the drawing, the steps and the plan's note, opened from an exercise name
+  if (S.demo && !S.sheetId && !S.settings) h += `<div class="sheet" role="dialog" aria-modal="true" aria-label="How to do ${esc(S.demo.name)}"><header class="topbar"><div class="wrap"><h1 class="demoh">${esc(S.demo.name)}</h1><button class="btn sm primary" data-a="closedemo">Done</button></div></header><main class="wrap">${demoHTML(S.demo)}</main></div>`;
   if (S.settings && !S.sheetId) h += `<div class="sheet" role="dialog" aria-modal="true" aria-label="Settings"><header class="topbar"><div class="wrap"><h1>Settings</h1><button class="btn sm primary" data-a="closesettings">Done</button></div></header><main class="wrap">${settingsHTML()}</main></div>`;
   if (S.toast) h += `<div class="toast" role="status">${esc(S.toast)}</div>`;
   const sheetScroll = app.querySelector(".sheet")?.scrollTop;
@@ -2814,7 +2840,8 @@ function render() {
   const box = app.querySelector("#chatin");
   if (box) { growBox(box); if (ci) { box.focus(); box.setSelectionRange(ci[0], ci[1]); } }
   if (sheetScroll != null) { const sh = app.querySelector(".sheet"); if (sh) sh.scrollTop = sheetScroll; }
-  document.body.style.overflow = S.sheetId || S.settings ? "hidden" : "";
+  document.body.style.overflow = S.sheetId || S.settings || S.demo ? "hidden" : "";
+  if (S.demo && !demoRaf && app.querySelector("svg[data-demo]")) demoRaf = requestAnimationFrame(demoTick);
   if (S.chatScroll && S.view === "coach") { S.chatScroll = false; window.scrollTo(0, document.body.scrollHeight); }
   updateWakeLock(); syncNative();
 }
@@ -2893,6 +2920,175 @@ async function updateWakeLock() {
 }
 document.addEventListener("visibilitychange", updateWakeLock);
 
+/* ---------- how-to drawings: a stick figure, posed by joint angles ----------
+   Angles in degrees as in SVG (0 = right, 90 = down). Each frame poses the figure, then shifts it so the
+   anchor joint sits at `at`; the drawing eases from frame to frame and loops. viewBox 160 × 160, floor at 150;
+   lying-down drawings crop the empty space above (`top`). */
+const SEG = { torso: 34, neck: 13, thigh: 26, shin: 26, foot: 9, uarm: 18, farm: 17 };
+const STAND = { torso: -90, thigh: 90, shin: 90, foot: 0, uarm: 92, farm: 92 };
+const HANG = { anchor: "hand", at: [80, 16], props: [["pullbar", 80, 16]], floor: false };
+const DEMOS = {
+  squat: { at: [96, 147], hold: "bar", frames: [{ ...STAND, torso: -88, uarm: 150, farm: -60 }, { torso: -55, thigh: 12, shin: 115, foot: 0, uarm: 172, farm: -40 }],
+    steps: ["Feet about shoulder-width, toes turned out a little.", "Brace, then sit down and back between your heels. Knees follow your toes.", "Go as deep as you can with a flat back, then drive up through the whole foot."] },
+  airsquat: { at: [96, 147], frames: [{ ...STAND, uarm: 92, farm: 92 }, { torso: -55, thigh: 12, shin: 115, foot: 0, uarm: -10, farm: -10 }],
+    steps: ["Feet about shoulder-width, toes turned out a little.", "Sit down and back, arms reaching forward for balance.", "Hips below the knees if you can, then stand all the way up."] },
+  gsquat: { at: [96, 147], hold: "kb", frames: [{ ...STAND, uarm: 60, farm: -110 }, { torso: -60, thigh: 12, shin: 115, foot: 0, uarm: 100, farm: -60 }],
+    steps: ["Hold the weight at your chest, elbows down.", "Sit down between your heels, chest tall.", "Elbows brush the inside of your knees at the bottom, then drive up."] },
+  hinge: { at: [96, 147], hold: "bar", frames: [STAND, { torso: -30, thigh: 50, shin: 105, foot: 0, uarm: 95, farm: 95 }],
+    steps: ["Bar close to your legs, soft knees.", "Push your hips back with a flat back. The bar slides down your thighs.", "Feel the stretch in your hamstrings, then squeeze your glutes to stand tall."] },
+  kbswing: { at: [96, 147], hold: "kb", frames: [{ torso: -40, thigh: 55, shin: 100, foot: 0, uarm: 112, farm: 118 }, { ...STAND, uarm: 0, farm: 0 }],
+    steps: ["Hike the bell back between your legs, hips back, flat back.", "Snap your hips forward hard. The arms just guide the bell.", "Bell floats to chest height, then let it fall back into the next rep."] },
+  bench: { top: 64, anchor: "hip", at: [80, 122], hold: "bar", props: [["bench", 30, 124, 64]],
+    frames: [{ torso: 180, thigh: 0, shin: 90, foot: 0, uarm: -90, farm: -90 }, { torso: 180, thigh: 0, shin: 90, foot: 0, uarm: 50, farm: -78 }],
+    steps: ["Eyes under the bar, shoulder blades pulled back and down, feet planted.", "Lower to the lower chest, elbows about 45° from your body.", "Press up and slightly back over your shoulders."] },
+  fly: { top: 64, anchor: "hip", at: [80, 122], hold: "db", props: [["bench", 30, 124, 64]],
+    frames: [{ torso: 180, thigh: 0, shin: 90, foot: 0, uarm: -90, farm: -90 }, { torso: 180, thigh: 0, shin: 90, foot: 0, uarm: 25, farm: 40 }],
+    steps: ["Arms above your chest, a small bend in the elbows.", "Open wide in an arc until you feel a stretch across the chest.", "Hug the weights back up along the same arc."] },
+  ohp: { at: [96, 147], hold: "bar", frames: [{ ...STAND, uarm: 70, farm: -75 }, { ...STAND, uarm: -88, farm: -90 }],
+    steps: ["Bar on the front of your shoulders, grip just outside them.", "Squeeze glutes and abs, press straight up, head moves back out of the way.", "Finish with the bar over your mid-foot, arms locked."] },
+  pushup: { top: 64, anchor: "hand", at: [106, 147], frames: [{ torso: -22, thigh: 165, shin: 165, foot: 90, uarm: 88, farm: 92 }, { torso: -5, thigh: 175, shin: 175, foot: 90, uarm: 160, farm: 30 }],
+    steps: ["Hands under your shoulders, body in one straight line.", "Lower your chest to the floor, elbows angled back.", "Push the floor away until your arms are straight."] },
+  pike: { anchor: "hand", at: [104, 147], frames: [{ torso: 50, thigh: 92, shin: 92, foot: 90, uarm: 90, farm: 90 }, { torso: 80, thigh: 95, shin: 95, foot: 90, uarm: 120, farm: 70 }],
+    steps: ["Hips high, hands a bit wider than your shoulders.", "Lower the top of your head toward the floor in front of your hands.", "Press back up to straight arms."] },
+  handstand: { anchor: "hand", at: [80, 147], props: [["wall", 64]], frames: [{ torso: 90, thigh: -90, shin: -90, foot: -180, uarm: 90, farm: 90 }, { torso: 92, thigh: -88, shin: -90, foot: -180, uarm: 90, farm: 90 }],
+    steps: ["Hands a palm's width from the wall, fingers spread.", "Push tall through your shoulders, ribs in, glutes tight.", "Breathe and hold. Come down before your form breaks."] },
+  hspu: { anchor: "hand", at: [80, 147], props: [["wall", 64]], frames: [{ torso: 90, thigh: -90, shin: -90, foot: -180, uarm: 92, farm: 88 }, { torso: 90, thigh: -90, shin: -90, foot: -180, uarm: 150, farm: 40 }],
+    steps: ["Kick up against the wall, hands just wider than your shoulders.", "Lower slowly until your head touches the pad.", "Press back up, or come down if you're doing negatives."] },
+  dips: { anchor: "hand", at: [92, 100], props: [["dipbar", 92, 100]], floor: true,
+    frames: [{ torso: -85, thigh: 100, shin: 150, foot: 150, uarm: 90, farm: 90 }, { torso: -70, thigh: 105, shin: 155, foot: 155, uarm: 155, farm: 45 }],
+    steps: ["Start on straight arms, shoulders down away from your ears.", "Lean forward a little and lower until your shoulders are just below your elbows.", "Press back up to straight arms."] },
+  pullup: { ...HANG, frames: [{ torso: -90, thigh: 92, shin: 110, foot: 20, uarm: -90, farm: -90 }, { torso: -82, thigh: 85, shin: 115, foot: 25, uarm: 60, farm: -80 }],
+    steps: ["Hang with your hands just outside your shoulders.", "Pull your shoulders down first, then drive your elbows down to your ribs.", "Chin over the bar, then lower all the way to straight arms."] },
+  hang: { ...HANG, frames: [{ torso: -90, thigh: 92, shin: 100, foot: 10, uarm: -90, farm: -90 }, { torso: -90, thigh: 90, shin: 98, foot: 10, uarm: -90, farm: -90 }],
+    steps: ["Full grip around the bar.", "Keep the shoulders active: pulled slightly down, not hanging in the joint.", "Breathe and hold."] },
+  kipswing: { ...HANG, frames: [{ torso: -95, thigh: 104, shin: 112, foot: 30, uarm: -102, farm: -102 }, { torso: -80, thigh: 66, shin: 72, foot: -10, uarm: -76, farm: -76 }],
+    steps: ["Arms straight. The swing comes from your shoulders, not your knees.", "Arch: chest through the arms, legs behind.", "Hollow: push the bar down, ribs in, legs in front. Repeat smoothly."] },
+  kippull: { ...HANG, frames: [{ torso: -95, thigh: 104, shin: 112, foot: 30, uarm: -102, farm: -102 }, { torso: -80, thigh: 66, shin: 72, foot: -10, uarm: -76, farm: -76 }, { torso: -82, thigh: 85, shin: 115, foot: 25, uarm: 60, farm: -80 }],
+    steps: ["Arch, then snap to hollow and drive your hips up.", "Use that pop to pull your chin over the bar.", "Push away from the bar into the next arch, so the reps link."] },
+  ttb: { ...HANG, frames: [{ torso: -90, thigh: 92, shin: 92, foot: 0, uarm: -90, farm: -90 }, { torso: -120, thigh: -70, shin: -100, foot: -110, uarm: -90, farm: -90 }],
+    steps: ["Hang with straight arms, a small kip from the shoulders.", "Push the bar down and close your hips hard.", "Touch the bar with both feet between your hands, then control the swing back."] },
+  kneeraise: { ...HANG, frames: [{ torso: -90, thigh: 92, shin: 92, foot: 0, uarm: -90, farm: -90 }, { torso: -95, thigh: -5, shin: 85, foot: 0, uarm: -90, farm: -90 }],
+    steps: ["Hang with straight arms, shoulders active.", "Lift your knees to hip height or higher without swinging.", "Lower slowly."] },
+  pulldown: { anchor: "hip", at: [78, 116], props: [["seat", 60, 118], ["cable", 86, 8]],
+    frames: [{ torso: -85, thigh: 0, shin: 90, foot: 0, uarm: -95, farm: -95 }, { torso: -95, thigh: 0, shin: 90, foot: 0, uarm: 70, farm: -80 }],
+    steps: ["Thighs under the pad, grip a bit wider than your shoulders.", "Lean back slightly and pull the bar to your upper chest.", "Let it up slowly until your arms are straight."] },
+  row: { at: [100, 147], hold: "db", frames: [{ torso: -20, thigh: 75, shin: 100, foot: 0, uarm: 90, farm: 90 }, { torso: -20, thigh: 75, shin: 100, foot: 0, uarm: 168, farm: 95 }],
+    steps: ["Hinge forward with a flat back, weight hanging under your shoulder.", "Pull your elbow back toward your hip.", "Pause at the top, then lower all the way."] },
+  cablerow: { top: 64, anchor: "hip", at: [52, 128], props: [["seat", 34, 130], ["cable", 150, 120]],
+    frames: [{ torso: -70, thigh: -12, shin: 12, foot: -80, uarm: 0, farm: 0 }, { torso: -95, thigh: -12, shin: 12, foot: -80, uarm: 170, farm: 10 }],
+    steps: ["Sit tall with soft knees, arms reaching forward.", "Pull the handle to your belly, elbows close to your body.", "Squeeze your shoulder blades for a second, then reach forward again."] },
+  facepull: { at: [86, 147], props: [["cable", 150, 60]], frames: [{ ...STAND, uarm: -8, farm: -6 }, { ...STAND, uarm: -170, farm: -25 }],
+    steps: ["Rope at face height, step back until your arms are straight.", "Pull the rope toward your eyes, hands apart, thumbs back.", "Hold a second, then let the arms go straight again."] },
+  lateral: { anchor: "hip", at: [80, 96], hold: "db", both: true,
+    frames: [{ torso: -90, thigh: 96, shin: 90, foot: 0, thigh2: 84, shin2: 90, foot2: 180, uarm: 82, farm: 86, uarm2: 98, farm2: 94 }, { torso: -90, thigh: 96, shin: 90, foot: 0, thigh2: 84, shin2: 90, foot2: 180, uarm: 0, farm: 6, uarm2: 180, farm2: 174 }],
+    steps: ["Weights at your sides, a slight bend in the elbows.", "Raise your arms out to the side to shoulder height, leading with the elbows.", "Lower slowly."] },
+  curl: { at: [96, 147], hold: "db", frames: [STAND, { ...STAND, uarm: 85, farm: -75 }],
+    steps: ["Elbows pinned to your sides.", "Curl the weight up without swinging your body.", "Lower slowly all the way to straight arms."] },
+  pushdown: { at: [92, 147], props: [["cable", 120, 14]], frames: [{ ...STAND, torso: -82, uarm: 95, farm: -40 }, { ...STAND, torso: -82, uarm: 95, farm: 92 }],
+    steps: ["Elbows tucked to your sides.", "Push the handle down until your arms are straight.", "Let it come up to chest height, elbows stay still."] },
+  ohext: { at: [96, 147], hold: "db", frames: [{ ...STAND, uarm: -100, farm: 140 }, { ...STAND, uarm: -100, farm: -95 }],
+    steps: ["Weight overhead, elbows pointing up.", "Lower it behind your head, upper arms still.", "Straighten your arms back up."] },
+  lunge: { at: [112, 147], hold: "db",
+    frames: [{ torso: -90, thigh: 55, shin: 85, foot: 0, thigh2: 125, shin2: 135, foot2: 56, uarm: 90, farm: 90 }, { torso: -90, thigh: 15, shin: 95, foot: 0, thigh2: 100, shin2: 165, foot2: 10, uarm: 90, farm: 90 }],
+    steps: ["Long stance, front foot flat, back heel up.", "Drop your back knee straight down toward the floor.", "Push through the front foot to come back up."] },
+  calf: { at: [96, 147], hold: "db", frames: [STAND, { ...STAND, foot: 35 }],
+    steps: ["Balls of your feet on the floor or a step.", "Rise as high as you can onto your toes.", "Pause, then lower slowly."] },
+  carry: { anchor: "hip", at: [80, 95], hold: "db",
+    frames: [{ ...STAND, thigh: 72, shin: 98, thigh2: 108, shin2: 84 }, { ...STAND, thigh: 108, shin: 84, thigh2: 72, shin2: 98 }],
+    steps: ["Pick up heavy weights with a flat back.", "Stand tall, shoulders down, abs braced.", "Walk with short, quick steps."] },
+  situp: { top: 64, anchor: "hip", at: [74, 145], frames: [{ torso: 180, neck: 180, thigh: -50, shin: 50, foot: 0, uarm: 0, farm: 180 }, { torso: 285, neck: 285, thigh: -50, shin: 50, foot: 0, uarm: 105, farm: 285 }],
+    steps: ["Knees bent, feet flat or anchored.", "Roll up until your chest is over your knees.", "Lower back down with control."] },
+  plank: { top: 64, anchor: "hand", at: [120, 147], frames: [{ torso: -8, thigh: 172, shin: 172, foot: 60, uarm: 90, farm: 0 }, { torso: -9, thigh: 172, shin: 172, foot: 60, uarm: 90, farm: 0 }],
+    steps: ["Elbows under your shoulders.", "Body in one line from head to heels, glutes and abs tight.", "Breathe and hold."] },
+  bridge: { top: 64, at: [124, 147], frames: [{ torso: 180, neck: 180, thigh: -35, shin: 55, foot: 0, uarm: 0, farm: 0 }, { torso: 148, neck: 175, thigh: -10, shin: 80, foot: 0, uarm: 20, farm: 0 }],
+    steps: ["Shoulders down, feet flat, knees bent.", "Drive through your heels and squeeze your glutes to lift your hips.", "Straight line from shoulders to knees at the top, then lower."] },
+  boxjump: { props: [["box", 100, 120, 44]],
+    frames: [{ at: [62, 147], torso: -50, thigh: 15, shin: 115, foot: 0, uarm: 140, farm: 140 }, { at: [120, 117], torso: -70, thigh: 40, shin: 105, foot: 0, uarm: -20, farm: -10 }],
+    steps: ["Stand close to the box.", "Swing your arms and jump, landing softly with both feet on the box.", "Stand up tall, then step down."] },
+  jump: { frames: [{ at: [90, 147], torso: -50, thigh: 15, shin: 115, foot: 0, uarm: 140, farm: 140 }, { at: [96, 122], ...STAND, foot: 60, uarm: -100, farm: -100 }],
+    steps: ["Squat down, arms back.", "Jump as high as you can, arms up.", "Land softly with bent knees."] },
+  wallsit: { at: [100, 147], props: [["wall", 52]], frames: [{ torso: -90, thigh: 2, shin: 90, foot: 0, uarm: 90, farm: 0 }, { torso: -90, thigh: 2, shin: 91, foot: 0, uarm: 90, farm: 0 }],
+    steps: ["Back flat against the wall.", "Slide down until your thighs are level with the floor.", "Hold."] }
+};
+// exercise name → drawing; the first match wins
+const DEMO_MAP = [[/handstand push|hspu/, "hspu"], [/handstand|wall walk/, "handstand"], [/pike push/, "pike"],
+  [/toes? to bar/, "ttb"], [/knee raise|knees to chest/, "kneeraise"], [/kip swing/, "kipswing"], [/kipping pull|butterfly pull/, "kippull"],
+  [/dead hang/, "hang"], [/pull-?ups?|chin-?ups?|chest to bar|muscle-?up|scapular/, "pullup"], [/pulldown/, "pulldown"],
+  [/cable row|seated row|machine row/, "cablerow"], [/\brows?\b/, "row"], [/face pull|pull-apart|reverse.*fly|y-raise/, "facepull"],
+  [/lateral raise/, "lateral"], [/\bdips?\b/, "dips"], [/push-?ups?/, "pushup"], [/\bfly\b/, "fly"],
+  [/bench press|floor press|chest press/, "bench"], [/overhead press|shoulder press|push press|kettlebell press|landmine|one-arm press|military/, "ohp"],
+  [/pushdown/, "pushdown"], [/triceps|skull/, "ohext"], [/^(?!.*(?:leg|nordic)).*curl/, "curl"], [/swing/, "kbswing"],
+  [/deadlift|\brdl\b|good morning/, "hinge"], [/hip thrust|glute bridge/, "bridge"], [/box jump/, "boxjump"], [/jump/, "jump"],
+  [/wall sit/, "wallsit"], [/split squat|lunge|step-?up/, "lunge"], [/goblet|front squat|pistol|wall ball|thruster/, "gsquat"],
+  [/bodyweight squat|air squat|box squats/, "airsquat"], [/squat/, "squat"], [/calf/, "calf"], [/farmer|suitcase|carry/, "carry"],
+  [/sit-?ups?|v-ups?|crunch/, "situp"], [/plank/, "plank"]];
+function demoFor(name) {
+  const n = norm(name), hit = DEMO_MAP.find(([re]) => re.test(n));
+  if (!hit) return null;
+  const d = DEMOS[hit[1]];
+  // what's in the hands follows the name: dumbbells, kettlebells or nothing
+  const hold = !d.hold ? null : /dumbbell|\bdb\b/.test(n) ? "db" : /kettle|\bkb\b/.test(n) ? "kb" : /machine|cable|band|bodyweight/.test(n) ? null : d.hold;
+  return { ...d, hold };
+}
+// a frame with the optional angles filled in: head in line with the torso, the far limbs with the near ones
+const fullFrame = f => ({ neck: f.torso, thigh2: f.thigh, shin2: f.shin, foot2: f.foot, uarm2: f.uarm, farm2: f.farm, ...f });
+function demoPose(d, f) {
+  const P = (p, a, l) => [p[0] + l * Math.cos(a * Math.PI / 180), p[1] + l * Math.sin(a * Math.PI / 180)];
+  const hip = [0, 0], sh = P(hip, f.torso, SEG.torso), head = P(sh, f.neck, SEG.neck);
+  const leg = (t, s, ft) => { const k = P(hip, t, SEG.thigh), a = P(k, s, SEG.shin); return [hip, k, a, P(a, ft, SEG.foot)]; };
+  const arm = (u, fa) => { const e = P(sh, u, SEG.uarm); return [sh, e, P(e, fa, SEG.farm)]; };
+  const J = { torso: [hip, sh], head, leg: leg(f.thigh, f.shin, f.foot), leg2: leg(f.thigh2, f.shin2, f.foot2), arm: arm(f.uarm, f.farm), arm2: arm(f.uarm2, f.farm2) };
+  const pin = { hip, hand: J.arm[2], toe: J.leg[3] }[d.anchor || "toe"], at = f.at || d.at;
+  const dx = at[0] - pin[0], dy = at[1] - pin[1], mv = p => [p[0] + dx, p[1] + dy];
+  for (const k of ["torso", "leg", "leg2", "arm", "arm2"]) J[k] = J[k].map(mv);
+  J.head = mv(J.head);
+  return J;
+}
+// t runs 0 → frames.length around the loop: whole numbers are the frames, with a short hold on each
+function demoSVG(d, t) {
+  const fs = d.frames, n = fs.length, i = Math.floor(t) % n, u = Math.min(1, (t % 1) / .7), e = u < .5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+  const A = fullFrame(fs[i]), B = fullFrame(fs[(i + 1) % n]), f = {};
+  for (const k of new Set([...Object.keys(A), ...Object.keys(B)])) {
+    const a = A[k] ?? B[k], b = B[k] ?? A[k];
+    f[k] = Array.isArray(a) ? a.map((v, j) => v + (b[j] - v) * e) : a + (b - a) * e;
+  }
+  const J = demoPose(d, f), r = v => Math.round(v * 10) / 10, line = ps => "M" + ps.map(p => r(p[0]) + " " + r(p[1])).join("L");
+  let h = d.floor === false ? "" : `<path class="fl" d="M0 150H160"/>`;
+  for (const [k, x, y, w] of d.props || []) {
+    if (k === "pullbar") h += `<path class="pr" d="M${x - 30} ${y}H${x + 30}M${x - 30} 0V${y}M${x + 30} 0V${y}"/>`;
+    else if (k === "dipbar") h += `<path class="pr" d="M${x - 14} ${y}H${x + 8}M${x - 6} ${y}V150"/>`;
+    else if (k === "bench") h += `<path class="pr" d="M${x} ${y}h${w}M${x + 8} ${y}V150M${x + w - 8} ${y}V150"/>`;
+    else if (k === "seat") h += `<path class="pr" d="M${x} ${y}h36M${x + 18} ${y}V150"/>`;
+    else if (k === "box") h += `<rect class="pr" x="${x}" y="${y}" width="${w}" height="${150 - y}" rx="2"/>`;
+    else if (k === "wall") h += `<path class="pr" d="M${x} 0V150"/>`;
+    else if (k === "cable") h += `<circle class="pr" cx="${x}" cy="${y}" r="4"/><path class="cb" d="M${x} ${y}L${r(J.arm[2][0])} ${r(J.arm[2][1])}"/>`;
+  }
+  const back = d.both ? "" : ' class="bk"';
+  h += `<path${back} d="${line(J.leg2)}"/><path${back} d="${line(J.arm2)}"/>`;
+  h += `<path d="${line(J.torso)}"/><path d="${line(J.leg)}"/><circle class="hd" cx="${r(J.head[0])}" cy="${r(J.head[1])}" r="7"/><path d="${line(J.arm)}"/>`;
+  const hold = (p, k) => k === "bar" ? `<circle class="wt" cx="${r(p[0])}" cy="${r(p[1])}" r="10"/><circle class="pr" cx="${r(p[0])}" cy="${r(p[1])}" r="2"/>`
+    : k === "kb" ? `<circle class="wt" cx="${r(p[0])}" cy="${r(p[1] + 7)}" r="6"/>` : `<rect class="wt" x="${r(p[0] - 7)}" y="${r(p[1] - 3)}" width="14" height="6" rx="2"/>`;
+  if (d.hold) h += hold(J.arm[2], d.hold) + (d.both ? hold(J.arm2[2], d.hold) : "");
+  return h;
+}
+let demoRaf = 0;
+function demoTick(now) {
+  const svg = app.querySelector("svg[data-demo]"), d = S.demo && demoFor(S.demo.name);
+  if (!svg || !d) { demoRaf = 0; return; }
+  // 1.4 s per move, the last 30 % of it held still
+  svg.innerHTML = demoSVG(d, now / 1400 % d.frames.length);
+  demoRaf = requestAnimationFrame(demoTick);
+}
+const reduceMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+function demoHTML(x) {
+  const d = demoFor(x.name), vb = d ? `0 ${d.top || 0} 160 ${160 - (d.top || 0)}` : "";
+  const fig = !d ? `<p class="muted small" style="margin:0">No drawing for this exercise yet.</p>`
+    : reduceMotion() ? `<div class="demofig two">${[0, d.frames.length - 1].map(k => `<svg viewBox="${vb}" role="img" aria-label="${k ? "End" : "Start"} position">${demoSVG(d, k)}</svg>`).join("")}</div>`
+    : `<div class="demofig"><svg data-demo viewBox="${vb}" role="img" aria-label="${esc(x.name)}, moving">${demoSVG(d, 0)}</svg></div>`;
+  return `<section class="card stack">${fig}${d ? `<ol class="steps">${d.steps.map(t => `<li>${esc(t)}</li>`).join("")}</ol>` : ""}</section>
+    ${x.note ? `<section class="card stack"><span class="label">From your plan</span><p style="margin:0">${esc(x.note)}</p></section>` : ""}`;
+}
+
 /* ---------- actions ---------- */
 function editingSession() { return S.sheetId ? S.sessions.get(S.sheetId) : activeSession(); }
 function startWorkout(dayId) {
@@ -2937,6 +3133,8 @@ app.addEventListener("click", e => {
     case "backupcopy": copyBackup(); break;
     case "restore": restoreBackup(S.restoreText); break;
     case "restoreopen": obStop(); S.onb = null; S.onbLater = true; S.settings = true; render(); { const el = document.getElementById("yourdata"); if (el) el.scrollIntoView({ block: "start" }); } break;
+    case "demo": { const ex = !S.sheetId && s && s.exercises[+b.dataset.i]; if (ex) { S.demo = { name: ex.name, note: ex.note || "" }; render(); } break; }
+    case "closedemo": S.demo = null; render(); break;
     case "closesettings": S.settings = false; S.advOpen = false; render(); break;
     case "obstart": obStop(); S.onb = newOnb(!!b.dataset.fresh); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
     case "oblater": obStop(); S.onb = null; S.onbLater = true; window.scrollTo(0, 0); render(); break;
@@ -3144,7 +3342,6 @@ app.addEventListener("change", e => {
     if (from !== norm(to)) { for (const k of Object.keys(al)) if (norm(al[k]) === from) al[k] = to; al[from] = to; delete al[norm(to)]; saveJourney(0); toast(`${t.value} now counts as ${to}.`); }
   }
   else if (a === "level") { S.plan.level = t.value; savePlan(0); render(); }
-  else if (a === "swapkeep") S.swapKeep = t.checked;
   else if (a === "restorefile" && t.files && t.files[0]) t.files[0].text().then(restoreBackup, () => toast("Couldn't read that file."));
   else if (a === "sdate") { const s = editingSession(); if (s && /^\d{4}-\d{2}-\d{2}$/.test(t.value)) { s.date = t.value; saveSession(s, 0); render(); } }
 });

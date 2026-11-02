@@ -175,9 +175,9 @@ main.wrap { padding-block: 4px calc(var(--nav-h) + 96px); display: flex; flex-di
 
 /* nav */
 nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 26; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
-nav.tabs .wrap { display: grid; grid-template-columns: repeat(4, 1fr); height: var(--nav-h); }
+nav.tabs .wrap { display: grid; grid-template-columns: repeat(5, 1fr); height: var(--nav-h); }
 nav.tabs button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .03em; }
-nav.tabs button svg { width: 24px; height: 24px; box-sizing: content-box; padding: 3px 18px; border-radius: 999px; }
+nav.tabs button svg { width: 24px; height: 24px; box-sizing: content-box; padding: 3px 14px; border-radius: 999px; }
 nav.tabs button.on { color: var(--ink); }
 nav.tabs button.on svg { background: var(--volt); color: var(--volt-ink); }
 
@@ -342,6 +342,21 @@ li.next .msdot { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent
 .draft h3 { margin: 0; font-family: var(--f-display); font-stretch: var(--wd); font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; line-height: 1.1; }
 .dday { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
 .dday .exlist li { padding: 6px 0; }
+/* coach chat: your messages on the right in ink, the coach's on the left on a card */
+.chat { display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 88%; padding: 10px 14px; border-radius: 16px; line-height: 1.45; overflow-wrap: anywhere; }
+.msg.me { align-self: flex-end; background: var(--ink); color: var(--bg); border-bottom-right-radius: 6px; white-space: pre-wrap; }
+.msg.ai { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.msg p { margin: 0 0 8px; } .msg p:last-child, .msg ul:last-child { margin-bottom: 0; }
+.msg ul { margin: 0 0 8px; padding-left: 20px; } .msg li + li { margin-top: 4px; }
+.msg .muted { font-style: italic; }
+.chg { align-self: stretch; max-width: none; border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px; background: var(--surface); display: flex; flex-direction: column; gap: 8px; }
+.chg.settled { border-color: var(--line); }
+.chg ul { margin: 0; padding-left: 18px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.composer { position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); z-index: 25; background: var(--bg); border-top: 1px solid var(--line); }
+.composer .wrap { display: flex; align-items: flex-end; gap: 8px; padding-block: 8px; }
+.composer .textarea { min-height: 46px; max-height: 140px; resize: none; padding-block: 11px; }
+.composer .btn { flex: none; min-height: 46px; }
 /* questionnaire */
 .opts { display: flex; flex-direction: column; gap: 8px; }
 .opt { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 14px; min-height: 52px; text-align: left; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
@@ -414,6 +429,7 @@ const ICON = {
   hist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   prog: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M5 15l4.5-4.5 3.5 3L19.5 7"/><path d="M15 7h4.5v4.5"/></svg>',
   plan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg>',
+  coach: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a8 8 0 0 1-11.7 7.1L4 20l1.3-4A8 8 0 1 1 20 11.5z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01" stroke-width="2.6"/></svg>',
   left: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
@@ -455,6 +471,7 @@ const isEmom = e => /\bemom\b/i.test(e.reps || e.target || "");
 const restTxt = e => isEmom(e) ? "every minute" : e.rest ? "rest " + mmss(e.rest * 1000) : "";
 
 /* ---------- state ---------- */
+const VIEWS = ["train", "history", "progress", "plan", "coach"];
 const S = {
   mode: "loading",          // loading | cloud | local
   plan: null, planLoaded: false,
@@ -462,13 +479,14 @@ const S = {
   sessions: new Map(), sessionsLoaded: false,
   progTab: (t => ["lifts", "bench", "goals", "trophies"].includes(t) ? t : "lifts")(ls.get("liftlog.progTab")),
   planTab: ls.get("liftlog.planTab") === "phases" ? "phases" : "plan", planEdit: null, phaseForm: null, settings: false,
-  view: (() => { const h = location.hash.slice(1); return ["train", "history", "progress", "plan"].includes(h) ? h : (ls.get("liftlog.view") || "train"); })(),
+  view: (() => { const h = location.hash.slice(1); return VIEWS.includes(h) ? h : VIEWS.includes(ls.get("liftlog.view")) ? ls.get("liftlog.view") : "train"; })(),
   sheetId: null,
   calMonth: null, calDay: null,
   progEx: ls.get("liftlog.progEx"), progMetric: ls.get("liftlog.progMetric") || "e1rm",
   restAt: null, justFinished: null,
   armed: null, sync: "idle", toast: null,
-  onb: null, onbLater: false   // questionnaire in progress; skipped for this visit
+  onb: null, onbLater: false,  // questionnaire in progress; skipped for this visit
+  chat: { busy: false, live: "", err: "", draft: "" }, chatScroll: false   // Coach tab: the reply being written, the unsent message
 };
 // one app-wide setting (Settings → Advanced): metric is kg and cm, imperial is lb and ft/in
 const imperial = () => (J().settings || {}).units === "imperial";
@@ -575,7 +593,7 @@ function replayOutbox() {
 }
 
 async function initStore() {
-  if (window.claude && window.claude.use) window.claude.use("sample").then(f => { sampleFn = f || null; if (f) scheduleRender(); }, () => {});
+  if (window.claude && window.claude.use) window.claude.use("sample").then(f => { sampleFn = f || null; S.sampleChecked = true; scheduleRender(); }, () => { S.sampleChecked = true; scheduleRender(); });
   let ns = null;
   try { ns = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch { ns = null; }
   if (!ns) {
@@ -1831,7 +1849,7 @@ function calibrate(s) {
 /* ---------- views ---------- */
 function topbar(title, gear, extra = "") { return `<header class="topbar"><div class="wrap"><h1>${ICON.mark}${esc(title)}</h1><div class="tbr">${syncHTML()}${extra}${gear ? `<button class="iconbtn" data-a="settings" aria-label="Settings">${ICON.gear}</button>` : ""}</div></div></header>`; }
 function navHTML() {
-  const t = [["train", "Train", ICON.train], ["history", "History", ICON.hist], ["progress", "Progress", ICON.prog], ["plan", "Plan", ICON.plan]];
+  const t = [["train", "Train", ICON.train], ["history", "History", ICON.hist], ["progress", "Progress", ICON.prog], ["plan", "Plan", ICON.plan], ["coach", "Coach", ICON.coach]];
   return `<nav class="tabs"><div class="wrap">${t.map(([k, l, i]) => `<button data-a="view" data-v="${k}" class="${S.view === k ? "on" : ""}" aria-current="${S.view === k ? "page" : "false"}">${i}${l}</button>`).join("")}</div></nav>`;
 }
 function armBtn(id, label, armedLabel, cls = "btn sm danger") {
@@ -2314,6 +2332,187 @@ function draftHTML(c) {
     ${c.mode === "adjust" ? `<div class="row"><button class="btn primary" data-a="coachapply">Use this plan</button><button class="btn ghost" data-a="coachdiscard">Discard</button></div>` : `<p class="muted small" style="margin:0">Tap Start phase below to use this plan.</p>`}</div>`;
 }
 
+/* ---------- Coach tab: a chat with Claude, who reads your log and proposes plan changes you apply ---------- */
+// the chat and what the coach remembers live in the journey, so they sync and go into backups
+let chatCtl = null;
+const CHAT_KEEP = 40, CHAT_SEND = 20, CHAT_NOTES = 20;
+const chatOn = () => coachOn() && !!S.journey;
+const chatJ = () => { const j = S.journey; if (!j.chat) j.chat = { msgs: [], notes: [] }; return j.chat; };
+const CHAT_STARTERS = [
+  ["How am I doing? Look at my last few weeks.", true],
+  ["Something hurts: ", false],
+  ["I've stopped making progress on ", false],
+  ["I only have 30 minutes today. What should I do?", true],
+  ["I don't like this exercise: ", false]
+];
+function chatRules() {
+  const ch = chatJ(), a = activeSession(), G = curGear();
+  const L = ["Instructions from the Lift Log app (not from the athlete):",
+    "You are the personal coach inside Lift Log, a strength and gymnastics training app. You're talking with one athlete. You can see their profile, plan, training log, benchmarks and goals below. Coach like someone who knows them: short, plain, specific to their numbers. Encouraging but never hyped. No emojis.",
+    "- Help with whatever they bring: stalled lifts, pain or niggles, form cues, missed weeks, short on time, motivation, swapping exercises, changing the plan.",
+    "- Pain or injury: be conservative, suggest pain-free alternatives or ranges, and tell them to get it checked by a physio or doctor if it's sharp, lasting or getting worse. Don't diagnose.",
+    "- If you need to know something before you can advise well, ask one short question instead of guessing.",
+    "- Talk about progress in numbers they can check (\"+2.5 kg on your best set\").",
+    "- Format: plain text in short paragraphs; \"- \" bullets are fine; **bold** sparingly. No headings, no tables. Usually under 150 words.",
+    "",
+    "Changing the plan: when a change would really help, say what you'd change and why, then end your reply with one block in exactly this form. The app shows it as a proposal and nothing changes until the athlete taps Apply.",
+    '<changes>{"changes":[{"op":"swap","day":"Day A","from":"exercise in the plan","to":"new exercise","note":"optional cue"},{"op":"edit","day":"Day B","name":"exercise in the plan","sets":3,"reps":"5-8","rest":120,"note":"optional"},{"op":"add","day":"Day C","after":"exercise in the plan","exercise":{"name":"...","sets":3,"reps":"10-12","rest":60,"note":"..."}},{"op":"remove","day":"Day A","name":"exercise in the plan"}],"weeklyTarget":3}</changes>',
+    "Use only the ops you need. Day and exercise names must match the plan exactly. rest is in seconds; weeklyTarget is optional. Plan only with their equipment. For a big change, ask first whether they want it.",
+    "",
+    "Remembering: when they tell you something worth knowing next time (an injury, a schedule change, a preference), add <remember>one short sentence</remember> anywhere in your reply. The athlete doesn't see these tags.",
+    "",
+    "Equipment they have: " + (andJoin(lowList(GEAR, [...G])) || "bodyweight only") + "."];
+  if (ch.notes.length) L.push("", "What you noted in earlier conversations:", ...ch.notes.map(n => "- " + n));
+  if (a) {
+    const done = (a.exercises || []).map(ex => `${ex.name}${doneSets(ex).length ? ` (${doneSets(ex).map(st => (st.w ? st.w + units() + "×" : "") + st.r).join(", ")})` : " (not started)"}`);
+    L.push("", `They're in a workout right now: ${done.join("; ")}.`);
+  }
+  L.push("", coachContext(), "", "The conversation with the athlete follows.");
+  return L.join("\n");
+}
+// what Claude's reply means: the text to show, a plan proposal, things to remember
+function chatParse(text) {
+  let changes = null; const notes = [];
+  let t = String(text || "").replace(/<changes>([\s\S]*?)<\/changes>/g, (_, j) => {
+    try {
+      const r = JSON.parse(j.trim().replace(/^```(?:json)?|```$/g, ""));
+      const list = Array.isArray(r && r.changes) ? r.changes.filter(c => c && typeof c === "object" && ["swap", "edit", "add", "remove"].includes(c.op)).slice(0, 12) : [];
+      const wt = Math.round(Number(r && r.weeklyTarget));
+      if (list.length || (wt >= 1 && wt <= 14)) changes = { changes: list, ...(wt >= 1 && wt <= 14 ? { weeklyTarget: wt } : {}) };
+    } catch {}
+    return "";
+  });
+  t = t.replace(/<remember>([\s\S]*?)<\/remember>/g, (_, n) => { const s = cstr(n, 200); if (s) notes.push(s); return ""; });
+  return { text: t.replace(/\n{3,}/g, "\n\n").trim(), changes, notes };
+}
+// while it streams: hide finished tags and any tag still being written
+const chatVisible = t => chatParse(t).text.replace(/<(changes|remember)>[\s\S]*$/, "").replace(/<[a-z]*$/, "").trim();
+function chatInput() {
+  const msgs = chatJ().msgs.slice(-CHAT_SEND);
+  const said = m => m.role === "user" ? m.text : (m.text || "(proposed plan changes)") + (m.changes ? `\n\n[Plan changes proposed: ${({ applied: "the athlete applied them", undone: "applied, then undone", skipped: "the athlete skipped them" })[m.status] || "not applied yet"}]` : "");
+  return [{ role: "user", content: chatRules() }, ...msgs.map(m => ({ role: m.role, content: said(m) }))];
+}
+async function chatSend(q) {
+  const c = S.chat, text = String(q ?? c.draft).trim().slice(0, 2000);
+  if (!text || c.busy || !chatOn()) return;
+  const ch = chatJ();
+  ch.msgs.push({ role: "user", text, at: Date.now() });
+  if (q == null) c.draft = "";
+  c.busy = true; c.live = ""; c.err = ""; S.chatScroll = true;
+  saveJourney(0);
+  const box = document.getElementById("chatin"); if (box && q == null) box.blur();
+  render();
+  const ctl = chatCtl = new AbortController();
+  let out = "", stopped = false;
+  try {
+    out = (await sampleFn(chatInput(), { signal: ctl.signal, cache: false, onText: ({ text }) => {
+      c.live = text;
+      const el = app.querySelector("[data-chatlive]"); if (!el) return;
+      const near = innerHeight + scrollY > document.documentElement.scrollHeight - 160;
+      el.innerHTML = mdHTML(chatVisible(text)) || `<span class="muted">Thinking…</span>`;
+      if (near) window.scrollTo(0, document.documentElement.scrollHeight);
+    } })).text;
+  } catch (e) {
+    const code = e && e.code;
+    out = e && e.text || ""; stopped = code === "cancelled";
+    if (COACH_OFF.includes(code)) { S.coachOff = true; out = ""; }
+    else if (!stopped) c.err = COACH_ERR[code] || "Couldn't reach Claude. Try again.";
+    if (code === "refused") out = "";
+  }
+  const r = chatParse(out);
+  // the card keeps saying what the target was before, also after Apply
+  if (r.changes && r.changes.weeklyTarget) r.changes.was = (S.plan && S.plan.weeklyTarget) || 0;
+  if (r.text || r.changes) ch.msgs.push({ role: "assistant", text: r.text + (stopped && r.text ? " …" : ""), at: Date.now(), ...(r.changes && !stopped ? { changes: r.changes } : {}) });
+  if (r.notes.length) ch.notes = [...ch.notes, ...r.notes.filter(n => !ch.notes.includes(n))].slice(-CHAT_NOTES);
+  ch.msgs = ch.msgs.slice(-CHAT_KEEP);
+  c.busy = false; c.live = ""; S.chatScroll = true;
+  saveJourney(0); render();
+}
+// the proposal in words
+function chgLines(chg) {
+  const L = [];
+  const nums = x => [x.sets && x.reps ? `${x.sets} × ${cstr(x.reps, 20)}` : x.sets ? x.sets + " sets" : x.reps ? cstr(x.reps, 20) : "", Number(x.rest) > 0 ? "rest " + mmss(x.rest * 1000) : ""].filter(Boolean).join(", ");
+  for (const c of chg.changes) {
+    const day = cstr(c.day, 40), at = day ? day + ": " : "";
+    if (c.op === "swap") L.push(`${at}${cstr(c.from, 60)} → ${cstr(c.to, 60)}`);
+    else if (c.op === "edit") L.push(`${at}${cstr(c.name, 60)}${nums(c) ? " → " + nums(c) : ""}${c.note ? ` (${cstr(c.note, 100)})` : ""}`);
+    else if (c.op === "add") { const x = c.exercise || {}; L.push(`${at}add ${cstr(x.name, 60)}${nums(x) ? " " + nums(x) : ""}`); }
+    else if (c.op === "remove") L.push(`${at}remove ${cstr(c.name, 60)}`);
+  }
+  if (chg.weeklyTarget) L.push(`Workouts per week: ${(chg.was ?? (S.plan && S.plan.weeklyTarget)) || "–"} → ${chg.weeklyTarget}`);
+  return L;
+}
+// Claude's changes go through the same checks as the questionnaire's: only exercises that exist, clamped numbers
+function chatApply(i) {
+  const m = chatJ().msgs[i]; if (!m || !m.changes || m.status) return;
+  if (!S.plan || !S.plan.days.length) { toast("You don't have a plan yet to change."); return; }
+  const np = clone(S.plan);
+  applyTailor(np, m.changes);
+  if (m.changes.weeklyTarget) np.weeklyTarget = m.changes.weeklyTarget;
+  if (JSON.stringify(np) === JSON.stringify(S.plan)) { toast("Those changes don't match your plan as it is now."); return; }
+  const p = curPhase();
+  if (p) p.prevPlans = [clone(S.plan), ...(p.prevPlans || [])].slice(0, 3);
+  S.plan = np; savePlan(0);
+  m.status = "applied"; saveJourney(0);
+  toast("Plan updated.");
+}
+function chatUndo(i) {
+  const m = chatJ().msgs[i], p = curPhase();
+  if (!m || m.status !== "applied" || !p || !(p.prevPlans || []).length) return;
+  S.plan = p.prevPlans.shift(); savePlan(0);
+  m.status = "undone"; saveJourney(0);
+  toast("Change undone.");
+}
+// only the latest applied proposal offers Undo: it restores the plan kept just before it
+const chatLastApplied = () => { const ms = chatJ().msgs; for (let i = ms.length - 1; i >= 0; i--) if (ms[i].changes && ms[i].status === "applied") return i; return -1; };
+// Claude writes a little markdown: paragraphs, "- " lists, **bold**. Everything is escaped first.
+function mdHTML(t) {
+  const inl = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  const out = []; let p = [], ul = [];
+  const endP = () => { if (p.length) out.push(`<p>${p.join("<br>")}</p>`); p = []; }, endUl = () => { if (ul.length) out.push(`<ul>${ul.join("")}</ul>`); ul = []; };
+  for (const raw of String(t || "").split("\n")) {
+    const line = raw.trim(), li = line.match(/^(?:[-*•]|\d+[.)])\s+(.+)/);
+    if (!line) { endP(); endUl(); }
+    else if (li) { endP(); ul.push(`<li>${inl(li[1])}</li>`); }
+    else { endUl(); p.push(inl(line.replace(/^#+\s*/, ""))); }
+  }
+  endP(); endUl();
+  return out.join("");
+}
+function viewCoach() {
+  if (!chatOn()) {
+    const why = S.coachOff ? "Claude isn't allowed for this page here. Allow it in the artifact's permissions, then reload."
+      : window.claude && !S.sampleChecked ? "Connecting to Claude…"
+      : "Your coach is Claude, so it runs where Lift Log is opened on claude.ai. Open it there to chat. To move your log over, use Settings → Your data.";
+    return `<section class="card stack"><h2>Your coach</h2><p class="muted small" style="margin:0">${esc(why)}</p></section>`;
+  }
+  const ch = chatJ(), c = S.chat, last = chatLastApplied(), canUndo = ((curPhase() || {}).prevPlans || []).length > 0;
+  let h = "";
+  if (!ch.msgs.length) h += `<section class="card stack"><h2>Your coach</h2><p class="muted small" style="margin:0">Ask Claude anything about your training: a lift that's stuck, something that hurts, a busy week, an exercise you'd rather swap. It reads your plan, your last 8 weeks, your benchmarks and goals. Your plan only changes when you tap Apply. This uses your own Claude usage.</p>
+    <div class="chips">${CHAT_STARTERS.map(([q, now]) => `<button class="chip" data-a="chatask" data-q="${esc(q)}"${now ? ' data-send="1"' : ""}>${esc(q.replace(/:? $/, "").replace(/ on$/, ""))}</button>`).join("")}</div></section>`;
+  h += `<div class="chat" aria-live="polite">`;
+  ch.msgs.forEach((m, i) => {
+    if (m.role === "user") { h += `<div class="msg me">${esc(m.text)}</div>`; return; }
+    if (m.text) h += `<div class="msg ai">${mdHTML(m.text)}</div>`;
+    if (!m.changes) return;
+    const st = m.status;
+    h += `<div class="msg chg${st ? " settled" : ""}"><span class="label">${st === "applied" ? "Applied to your plan" : st === "undone" ? "Applied, then undone" : st === "skipped" ? "Skipped" : "Proposed plan change"}</span><ul>${chgLines(m.changes).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+      ${!st ? `<div class="row"><button class="btn sm primary" data-a="chatapply" data-i="${i}">Apply</button><button class="btn sm ghost" data-a="chatskip" data-i="${i}">Not now</button></div>` : st === "applied" && i === last && canUndo ? `<button class="linkbtn" style="align-self:flex-start" data-a="chatundo" data-i="${i}">Undo</button>` : ""}</div>`;
+  });
+  if (c.busy) h += `<div class="msg ai" data-chatlive>${mdHTML(chatVisible(c.live)) || `<span class="muted">Thinking…</span>`}</div>`;
+  h += `</div>`;
+  if (c.err) h += `<p class="small" role="alert" style="margin:0;color:var(--warn)">${esc(c.err)}</p>`;
+  if (ch.notes.length) h += `<section class="card"><details class="more"><summary>What your coach remembers</summary><div class="stack"><p class="muted small" style="margin:0">Claude noted these from your chats and reads them every time. Remove anything that's no longer true.</p>
+    <ul class="exlist">${ch.notes.map((n, k) => `<li><span>${esc(n)}</span><button class="iconbtn" data-a="chatforget" data-n="${k}" aria-label="Forget this">${ICON.x}</button></li>`).join("")}</ul></div></details></section>`;
+  return h;
+}
+function composerHTML() {
+  const c = S.chat;
+  return `<div class="composer"><div class="wrap"><textarea class="textarea" id="chatin" data-a="chatin" rows="1" placeholder="Ask your coach" aria-label="Message to your coach" enterkeyhint="send">${esc(c.draft)}</textarea>
+    ${c.busy ? `<button class="btn" data-a="chatstop">Stop</button>` : `<button class="btn primary" data-a="chatsend"${c.draft.trim() ? "" : " disabled"}>Send</button>`}</div></div>`;
+}
+const growBox = t => { t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight + 2, 140) + "px"; };
+
 // swap panel: other exercises for the same movement; your equipment's first, others say what they need
 function swapHTML(e, live) {
   const G = curGear(), opts = swapOpts(e, G), canKeep = live && S.swap && S.swap.pid && findPlanEx(S.swap.pid);
@@ -2500,10 +2699,11 @@ function render() {
     o.focus = false;
     return;
   }
-  const titles = { train: activeSession() ? "Workout" : "Train", history: "History", progress: "Progress", plan: "Plan" };
-  const body = { train: viewTrain, history: viewHistory, progress: viewProgress, plan: viewPlan }[S.view]();
-  let h = topbar(titles[S.view], true);
+  const titles = { train: activeSession() ? "Workout" : "Train", history: "History", progress: "Progress", plan: "Plan", coach: "Coach" };
+  const body = { train: viewTrain, history: viewHistory, progress: viewProgress, plan: viewPlan, coach: viewCoach }[S.view]();
+  let h = topbar(titles[S.view], true, S.view === "coach" && (J().chat || {}).msgs?.length && !S.chat.busy ? armBtn("chatclear", "New chat", "Tap to clear", "linkbtn") : "");
   h += `<main class="wrap">${body}</main>`;
+  if (S.view === "coach" && chatOn()) h += composerHTML();
   if (S.restAt && activeSession() && S.view === "train") h += `<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b><button data-a="restplus">+30 s</button><button data-a="restoff">Hide</button></div></div></div>`;
   h += navHTML();
   if (S.sheetId && S.sessions.get(S.sheetId)) {
@@ -2513,9 +2713,14 @@ function render() {
   if (S.settings && !S.sheetId) h += `<div class="sheet" role="dialog" aria-modal="true" aria-label="Settings"><header class="topbar"><div class="wrap"><h1>Settings</h1><button class="btn sm primary" data-a="closesettings">Done</button></div></header><main class="wrap">${settingsHTML()}</main></div>`;
   if (S.toast) h += `<div class="toast" role="status">${esc(S.toast)}</div>`;
   const sheetScroll = app.querySelector(".sheet")?.scrollTop;
+  // a reply can arrive while you type the next message: keep the cursor in the box
+  const ci = document.activeElement && document.activeElement.id === "chatin" ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
   app.innerHTML = h;
+  const box = app.querySelector("#chatin");
+  if (box) { growBox(box); if (ci) { box.focus(); box.setSelectionRange(ci[0], ci[1]); } }
   if (sheetScroll != null) { const sh = app.querySelector(".sheet"); if (sh) sh.scrollTop = sheetScroll; }
   document.body.style.overflow = S.sheetId || S.settings ? "hidden" : "";
+  if (S.chatScroll && S.view === "coach") { S.chatScroll = false; window.scrollTo(0, document.body.scrollHeight); }
   updateWakeLock();
 }
 let toastT;
@@ -2623,7 +2828,7 @@ app.addEventListener("click", e => {
   const s = editingSession(), jr = S.journey;
   const goal = () => jr.goals[+b.dataset.g], ms = () => goal().milestones[+b.dataset.m];
   switch (a) {
-    case "view": S.view = b.dataset.v; ls.set("liftlog.view", S.view); window.scrollTo(0, 0); render(); break;
+    case "view": S.view = b.dataset.v; ls.set("liftlog.view", S.view); window.scrollTo(0, 0); S.chatScroll = S.view === "coach"; render(); break;
     case "retry": retryAll(); break;
     case "settings": S.settings = true; render(); break;
     case "backup": saveBackup(); break;
@@ -2714,6 +2919,13 @@ app.addEventListener("click", e => {
     case "coachclose": S.coach = null; render(); break;
     case "coachdiscard": S.coach.draft = null; S.coach.status = "idle"; render(); break;
     case "coachapply": applyCoach(); break;
+    case "chatsend": chatSend(); break;
+    case "chatstop": if (chatCtl) chatCtl.abort(); break;
+    case "chatask": if (b.dataset.send) chatSend(b.dataset.q); else { S.chat.draft = b.dataset.q; render(); const el = document.getElementById("chatin"); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } break;
+    case "chatapply": chatApply(+b.dataset.i); break;
+    case "chatskip": { const m = chatJ().msgs[+b.dataset.i]; if (m) { m.status = "skipped"; saveJourney(0); render(); } break; }
+    case "chatundo": chatUndo(+b.dataset.i); break;
+    case "chatforget": chatJ().notes.splice(+b.dataset.n, 1); saveJourney(0); render(); break;
     case "planrestore": { const p = curPhase(), prev = p.prevPlans.shift(); if (S.plan) p.prevPlans.unshift(clone(S.plan)); S.plan = prev; savePlan(0); saveJourney(0); toast("Previous plan restored. Tap again to switch back."); break; }
     case "start": startWorkout(b.dataset.id); break;
     case "dismissdone": S.justFinished = null; render(); break;
@@ -2749,6 +2961,7 @@ app.addEventListener("click", e => {
       const [kind, x, y] = id.split(":");
       if (kind === "rmex") { const ss = S.sessions.get(x); ss.exercises.splice(+y, 1); saveSession(ss); }
       else if (kind === "discard") { deleteSession(x); S.restAt = null; toast("Workout discarded."); return; }
+      else if (kind === "chatclear") { chatJ().msgs = []; S.chat.err = ""; saveJourney(0); }
       else if (kind === "delsess") { deleteSession(x); S.sheetId = null; toast("Workout deleted."); return; }
       else if (kind === "rmgoal") { jr.goals = jr.goals.filter(g => g.id !== x); saveJourney(0); }
       else if (kind === "origplan") { useOriginalPlan(); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to the original Upper Body Plan."); return; }
@@ -2786,6 +2999,7 @@ app.addEventListener("input", e => {
   else if (a === "coachdays") { const n = parseInt(t.value, 10); if (n >= 1 && n <= 7) S.coach.days = n; }
   else if (a === "coachmin") { const n = parseInt(t.value, 10); if (n >= 15 && n <= 240) S.coach.minutes = n; }
   else if (a === "restoretext") S.restoreText = t.value;
+  else if (a === "chatin") { S.chat.draft = t.value; growBox(t); const b = app.querySelector('[data-a="chatsend"]'); if (b) b.disabled = !t.value.trim(); }
   else if (a === "npname") S.phaseForm.name = t.value;
   else if (a === "npfocus") S.phaseForm.focus = t.value;
   else if (a === "score") {
@@ -2829,6 +3043,8 @@ app.addEventListener("change", e => {
 app.addEventListener("keydown", e => {
   const t = e.target;
   if (e.key === "Enter" && t.dataset.a === "obnum") { e.preventDefault(); const ins = [...app.querySelectorAll('[data-a="obnum"]')], nx = ins[ins.indexOf(t) + 1]; if (nx) nx.focus(); else obNext(); return; }
+  // Enter sends with a keyboard; on a phone Enter is a new line and the button sends
+  if (e.key === "Enter" && t.id === "chatin" && !e.shiftKey && matchMedia("(pointer: fine)").matches) { e.preventDefault(); chatSend(); return; }
   if (e.key === "Enter" && t.id === "swapin") { e.preventDefault(); doSwap(t.value.trim()); return; }
   if (e.key === "Enter" && t.tagName === "INPUT") {
     if (t.id && t.id.startsWith("addex-")) { e.preventDefault(); t.parentElement.querySelector("button").click(); return; }
@@ -2836,7 +3052,7 @@ app.addEventListener("keydown", e => {
     if (t.dataset.a === "r") { e.preventDefault(); t.blur(); }
   }
 });
-window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (["train", "history", "progress", "plan"].includes(h)) { S.view = h; render(); } });
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (VIEWS.includes(h)) { S.view = h; render(); } });
 
 render();
 initStore();

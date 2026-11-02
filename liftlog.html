@@ -145,6 +145,8 @@ main.wrap { padding-block: 4px calc(var(--nav-h) + 96px); display: flex; flex-di
 .exhead h3 { margin: 0; font-size: 19px; font-weight: 600; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; }
 .exhead .tgt { color: var(--muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .last { font-size: 13px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.sugg { font-size: 13px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.sugg b { color: var(--ink); font-weight: 700; }
 .sets { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .setrow { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 48px; gap: 8px; align-items: center; }
 .setrow .n { font-family: var(--f-display); font-stretch: var(--wd); font-weight: 700; font-size: 18px; color: var(--muted); text-align: center; }
@@ -662,6 +664,34 @@ function exerciseHistory(name, beforeSession) {
 function lastFor(name, sess) { const h = exerciseHistory(name, sess); return h.length ? h[h.length - 1] : null; }
 // the weight set by the starting test counts until you've done the exercise in a normal workout
 const useLoad = (e, last) => !!e.load && (!last || !!(S.sessions.get(last.id) || {}).start);
+// today's weight and reps from your history: add reps up to the top of the range, then add weight;
+// back off after a long break or when the lift has stalled for 3 workouts
+const LOWER_PT = new Set(["squat", "hinge", "single"]);
+function suggestFor(ex, sess) {
+  if (ex.kind || ex.test || ex.probe || isEmom(ex) || (ex.unit && ex.unit !== "reps")) return null;
+  const m = String(ex.target || "").split("×").pop().match(/^\s*(\d+)(?:\s*[-–]\s*(\d+))?/); if (!m) return null;
+  const lo = +m[1], hi = +(m[2] || m[1]);
+  const h = exerciseHistory(ex.name, sess), last = h[h.length - 1]; if (!last || useLoad(ex, last)) return null;
+  const W = last.top, top = W > 0 ? last.sets.filter(st => st.w === W) : last.sets, minR = Math.min(...top.map(st => st.r));
+  if (!(W > 0)) return minR >= hi ? { r: hi, why: `You got ${hi} on every set. Add weight or a harder version.` } : { r: Math.max(lo, minR + 1), why: "One more rep than last time." };
+  const step = imperial() ? 5 : 2.5, u = units();
+  const down = (f, why) => { const r = roundW(W * f); return { w: r < W ? r : Math.max(step, W - step), r: lo, why }; };
+  const gap = Math.round((parseDay(sess.date) - parseDay(last.date)) / 864e5);
+  if (gap >= 28) return down(0.8, `${Math.floor(gap / 7)} weeks since you last did this. Start lighter and build back up.`);
+  if (gap >= 14) return down(0.9, `${Math.floor(gap / 7)} weeks since you last did this. A little lighter to ease back in.`);
+  if (minR >= hi && top.length >= (Number((String(ex.target).match(/^\s*(\d+)\s*×/) || [])[1]) || 1)) {
+    const inc = LOWER_PT.has(moveOf(ex.name)) ? 2 * step : step;
+    return { w: W + inc, r: lo, why: `You got ${hi} on every set, so +${fmt(inc)} ${u}.` };
+  }
+  // stalled: no new best in the last 3 workouts, and you haven't already backed off
+  if (h.length >= 4) {
+    const recent = h.slice(-3), before = h.slice(0, -3), peak = Math.max(...before.map(p => p.e1rm));
+    if (Math.max(...recent.map(p => p.e1rm)) <= peak + 1e-9 && recent.every(p => p.top >= 0.95 * Math.max(...before.map(q => q.top))))
+      return down(0.9, "No new best in your last 3 workouts. Drop about 10% and build back up.");
+  }
+  if (minR < lo) return { w: W, r: lo, why: `Stay at ${fmt(W)} ${u} until you get ${lo} on every set.` };
+  return { w: W, r: Math.min(hi, minR + 1), why: `One more rep than last time. At ${hi} on every set, the weight goes up.` };
+}
 function isPR(name, sess, ex) {
   const prev = exerciseHistory(name, sess); if (!prev.length) return false;
   const prevBest = Math.max(...prev.map(p => p.e1rm || p.maxR));
@@ -1926,21 +1956,23 @@ function editorHTML(s, live) {
     const ru = ex.unit || "reps";
     const last0 = lastFor(ex.name, s), ld = useLoad(ex, last0), last = ld ? null : last0;
     const ds = doneSets(ex), complete = ex.sets.length && ex.sets.every(st => st.done);
-    const pr = ds.length && isPR(ex.name, s, ex);
+    const pr = ds.length && isPR(ex.name, s, ex), sg = live ? suggestFor(ex, s) : null;
     h += `<section class="ex${complete ? " complete" : ""}" data-ex="${i}">
       <div class="exhead"><h3>${esc(ex.name)}${pr ? '<span class="pr">PR</span>' : ""}</h3>${ex.target ? `<span class="tgt">${esc(ex.target)}</span>` : ""}</div>
-      <div class="last">${ld ? `Start with ${fmt(ex.load)} ${u}, from your starting test` : last ? `Last time, ${shortDate(last.date)}: ${last.sets.map(st => fmt(st.w) + "×" + st.r).join(", ")}` : "First time logging this"}</div>${note}
+      <div class="last">${ld ? `Start with ${fmt(ex.load)} ${u}, from your starting test` : last ? `Last time, ${shortDate(last.date)}: ${last.sets.map(st => fmt(st.w) + "×" + st.r).join(", ")}` : "First time logging this"}</div>
+      ${sg ? `<div class="sugg"><b>Today: ${sg.w ? fmt(sg.w) + " " + u + " × " : ""}${sg.r}${sg.w ? "" : " reps"}</b> <span>${esc(sg.why)}</span></div>` : ""}${note}
       ${!live ? "" : isEmom(ex) ? (ex.emomAt || ex.sets.some(x => x.done) ? "" : `<button class="restbtn" data-a="emomstart" data-i="${i}">Start EMOM clock</button>`) : ex.rest ? `<button class="restbtn" data-a="rest" data-sec="${ex.rest}">Rest ${mmss(ex.rest * 1000)}</button>` : ""}
       <div class="sets"><div class="colhead"><span>Set</span><span>Weight</span><span>${esc(ru)}</span><span></span></div>`;
     ex.sets.forEach((st, j) => {
       const ref = last ? (last.sets[j] || last.sets[last.sets.length - 1]) : null;
       // the nearest earlier set in this workout with that field filled in
       const prevIn = k => { for (let x = j - 1; x >= 0; x--) if (ex.sets[x][k] != null && ex.sets[x][k] !== "") return ex.sets[x][k]; return null; };
-      const pw = prevIn("w"), phW = ref ? fmt(ref.w) : pw != null ? fmt(pw) : ld ? fmt(ex.load) : "";
+      // with a suggestion: today's weight, or what you've already used in this workout
+      const pw = prevIn("w"), phW = sg && sg.w ? fmt(pw != null ? pw : sg.w) : ref ? fmt(ref.w) : pw != null ? fmt(pw) : ld ? fmt(ex.load) : "";
       // reps hint: last time's reps, but never below the bottom of the target range ("5 / side" → 5, "max" → none)
       const lo = ((String(ex.target || "").split("×").pop().match(/^\s*(\d+)/) || [])[1]) || "";
       const prevR = ref ? ref.r : prevIn("r");
-      const phR = prevR == null ? lo : +lo > +prevR ? lo : prevR;
+      const phR = sg ? String(sg.r) : prevR == null ? lo : +lo > +prevR ? lo : prevR;
       h += `<div class="setrow${st.done ? " isdone" : ""}">
         <span class="n">${j + 1}</span>
         <label class="field"><input id="w-${s.id}-${i}-${j}" inputmode="decimal" enterkeyhint="next" autocomplete="off" data-a="w" data-i="${i}" data-j="${j}" value="${st.w ?? ""}" placeholder="${esc(phW)}" aria-label="Set ${j + 1} weight in ${u}"><span>${u}</span></label>

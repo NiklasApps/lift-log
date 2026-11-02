@@ -9,10 +9,19 @@ to it through `window.webkit.messageHandlers.liftlog`:
 | `{type: "haptic"}` | Vibrates when the rest is over. |
 | `{type: "awake", on}` | Keeps the screen on during a workout. |
 | `{type: "share", name, text}` | Opens the share sheet with the backup file. |
+| `{type: "claude", id, tier, messages}` | Asks Claude (Messages API, streamed) and answers through `window.__liftlogClaude(id, event)`. |
+| `{type: "claudeCancel", id}` | Stops that answer. |
+| `{type: "claudeKey", key}` | Checks the Anthropic API key and saves it in the Keychain (empty removes it), answers through `window.__liftlogClaudeKey`. |
 
 In the app, the page runs in local mode: data lives in the web view's
-localStorage (origin `liftlog://app`), and the AI features need claude.ai, so
-they're off. Move data in with Settings → Your data → Restore.
+localStorage (origin `liftlog://app`). Move data in with Settings → Your data → Restore.
+
+Claude (the Coach tab, the questionnaire) runs through the app on the person's
+own Anthropic API key, added under Settings → Claude. `Claude.swift` keeps the
+key in the Keychain (the page never sees it) and calls the Messages API
+directly: Claude Opus 5.5 for coaching, Claude Haiku 5.5 for short reads.
+Usage is billed to that Anthropic account. `window.liftlogApp.claudeKey` tells
+the page at load whether a key is saved.
 
 ## Building without a Mac
 - `project.yml` is an XcodeGen spec. The `.xcodeproj` is generated

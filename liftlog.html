@@ -593,6 +593,7 @@ function replayOutbox() {
 }
 
 async function initStore() {
+  if (appClaude()) { S.sampleChecked = true; if (window.liftlogApp.claudeKey) sampleFn = appSample; }
   if (window.claude && window.claude.use) window.claude.use("sample").then(f => { sampleFn = f || null; S.sampleChecked = true; scheduleRender(); }, () => { S.sampleChecked = true; scheduleRender(); });
   let ns = null;
   try { ns = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch { ns = null; }
@@ -2181,7 +2182,63 @@ function startPhase() {
 let sampleFn = null, coachCtl = null;
 const coachOn = () => !!sampleFn && !S.coachOff;
 const COACH_OFF = ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"];
-const COACH_ERR = { rate_limited: "You've reached a Claude usage limit. Try again later.", session_expired: "Sign in to claude.ai again, then try again.", invalid_json: "Claude's answer wasn't a usable plan. Try again.", refused: "Claude declined this request. Try describing the goal differently.", empty_completion: "Claude didn't answer. Try a shorter description.", prompt_too_large: "Your log is too long to send in one go." };
+const COACH_ERR = { rate_limited: "You've reached a Claude usage limit. Try again later.", session_expired: "Sign in to claude.ai again, then try again.", invalid_json: "Claude's answer wasn't a usable plan. Try again.", refused: "Claude declined this request. Try describing the goal differently.", empty_completion: "Claude didn't answer. Try a shorter description.", prompt_too_large: "Your log is too long to send in one go.",
+  invalid_key: "Anthropic didn't accept your API key. Check it under Settings → Claude.", no_credit: "Your Anthropic account is out of credit. Add some at console.anthropic.com.", offline: "No connection. Try again when you're online.", no_key: "Add your Anthropic API key under Settings → Claude." };
+// iPhone app: Claude through the app, on the person's own Anthropic API key (kept in the Keychain, never in the page).
+// Shaped like claude.ai's sample, so the coach and the questionnaire work the same in both.
+const appClaude = () => !window.claude && !!nativeApp() && !!window.liftlogApp;
+const appCalls = new Map();
+window.__liftlogClaude = (id, ev) => {
+  const c = appCalls.get(id); if (!c || !ev) return;
+  if (ev.type === "text" || ev.type === "done") {
+    const t = String(ev.text || "");
+    if (t.length > c.text.length && c.onText) try { c.onText({ text: t, delta: t.slice(c.text.length) }); } catch {}
+    c.text = t;
+    if (ev.type === "text") return;
+  }
+  appCalls.delete(id);
+  if (ev.type === "done") { if (c.text.trim()) c.resolve({ text: c.text, truncated: ev.stop === "max_tokens" }); else c.reject({ code: "empty_completion" }); }
+  else c.reject({ code: ev.code || "upstream_error", message: ev.message || "", ...(c.text ? { text: c.text } : {}) });
+};
+function appAsk(input, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const sig = opts.signal; if (sig && sig.aborted) { reject({ code: "cancelled" }); return; }
+    const id = uid(), c = { text: "", onText: opts.onText, resolve, reject };
+    const messages = typeof input === "string" ? [{ role: "user", content: input }] : input.map(m => ({ role: m.role, content: m.content }));
+    appCalls.set(id, c);
+    if (sig) sig.addEventListener("abort", () => {
+      if (!appCalls.delete(id)) return;
+      nativeApp().postMessage({ type: "claudeCancel", id });
+      reject({ code: "cancelled", ...(c.text ? { text: c.text } : {}) });
+    }, { once: true });
+    nativeApp().postMessage({ type: "claude", id, tier: opts.modelTier || "default", messages });
+  });
+}
+// a JSON reply: the whole of it, a fenced block, or from the first { or [ to the last } or ]
+function looseJSON(text) {
+  const tries = [text, (text.match(/```(?:json)?\s*([\s\S]*?)```/) || [])[1]];
+  const i = text.search(/[{[]/), j = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+  if (i >= 0 && j > i) tries.push(text.slice(i, j + 1));
+  for (const t of tries) if (t != null) try { return JSON.parse(t.trim()); } catch {}
+  throw { code: "invalid_json", text };
+}
+const appSample = Object.assign((input, opts) => appAsk(input, opts), { json: (input, opts) => appAsk(input, opts).then(r => looseJSON(r.text)) });
+const KEY_ERR = { invalid_key: "Anthropic didn't accept that key. Copy it again from console.anthropic.com.", offline: "No connection. Try again when you're online.", keychain: "Couldn't store the key on this iPhone. Try again." };
+// the app's answer to saving or removing the key
+window.__liftlogClaudeKey = r => {
+  S.keyBusy = false;
+  sampleFn = r && r.has ? appSample : null;
+  if (sampleFn) S.coachOff = false;
+  if (r && r.ok) { S.keyErr = ""; toast(r.has ? "Claude connected." : "API key removed."); return; }
+  S.keyErr = KEY_ERR[r && r.code] || "Couldn't check the key. Try again."; render();
+};
+function claudeKeyHTML() {
+  if (sampleFn === appSample) return `<section class="card stack" id="claudekey"><h2>Claude</h2><p class="muted small" style="margin:0">Connected with your Anthropic API key. Your coach and the questionnaire use Claude right here in the app. Each coach message is billed to your Anthropic account, usually a few cents.</p>
+    <div class="row">${armBtn("claudekeyrm", "Remove key", "Tap again to remove")}</div></section>`;
+  return `<section class="card stack" id="claudekey"><h2>Claude</h2><p class="muted small" style="margin:0">To chat with your coach in the app, add an API key from your Anthropic account (console.anthropic.com → API keys). It's stored in this iPhone's Keychain and only sent to Anthropic. Messages are billed to that account, usually a few cents each.</p>
+    <div class="addex"><input class="textin" id="claudekeyin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="sk-ant-…" aria-label="Anthropic API key"><button class="btn primary" data-a="claudekey"${S.keyBusy ? " disabled" : ""}>${S.keyBusy ? "Checking…" : "Save"}</button></div>
+    ${S.keyErr ? `<p class="small" role="alert" style="margin:0;color:var(--warn)">${esc(S.keyErr)}</p>` : ""}</section>`;
+}
 function openCoach(mode) {
   const p = curPhase();
   S.coach = { mode, goal: mode === "adjust" && p ? p.focus || "" : "", days: (S.plan && S.plan.weeklyTarget) || 3, minutes: 60, notes: "", status: "idle", msg: "", draft: null };
@@ -2481,6 +2538,7 @@ function mdHTML(t) {
 }
 function viewCoach() {
   if (!chatOn()) {
+    if (appClaude()) return `<section class="card stack"><h2>Your coach</h2><p class="muted small" style="margin:0">Your coach is Claude. To chat with it here in the app, add your Anthropic API key in Settings.</p><button class="btn primary" data-a="claudesetup">Add API key</button></section>`;
     const why = S.coachOff ? "Claude isn't allowed for this page here. Allow it in the artifact's permissions, then reload."
       : window.claude && !S.sampleChecked ? "Connecting to Claude…"
       : "Your coach is Claude, so it runs where Lift Log is opened on claude.ai. Open it there to chat. To move your log over, use Settings → Your data.";
@@ -2488,7 +2546,7 @@ function viewCoach() {
   }
   const ch = chatJ(), c = S.chat, last = chatLastApplied(), canUndo = ((curPhase() || {}).prevPlans || []).length > 0;
   let h = "";
-  if (!ch.msgs.length) h += `<section class="card stack"><h2>Your coach</h2><p class="muted small" style="margin:0">Ask Claude anything about your training: a lift that's stuck, something that hurts, a busy week, an exercise you'd rather swap. It reads your plan, your last 8 weeks, your benchmarks and goals. Your plan only changes when you tap Apply. This uses your own Claude usage.</p>
+  if (!ch.msgs.length) h += `<section class="card stack"><h2>Your coach</h2><p class="muted small" style="margin:0">Ask Claude anything about your training: a lift that's stuck, something that hurts, a busy week, an exercise you'd rather swap. It reads your plan, your last 8 weeks, your benchmarks and goals. Your plan only changes when you tap Apply. ${sampleFn === appSample ? "Each message is billed to your Anthropic API account, usually a few cents." : "This uses your own Claude usage."}</p>
     <div class="chips">${CHAT_STARTERS.map(([q, now]) => `<button class="chip" data-a="chatask" data-q="${esc(q)}"${now ? ' data-send="1"' : ""}>${esc(q.replace(/:? $/, "").replace(/ on$/, ""))}</button>`).join("")}</div></section>`;
   h += `<div class="chat" aria-live="polite">`;
   ch.msgs.forEach((m, i) => {
@@ -2559,6 +2617,7 @@ function settingsHTML() {
       <p class="muted small" style="margin:0">Days A, B, C and Test Week as first set up. Your workouts and starting test results stay. The current plan is kept under Plan → Phases.</p></section>`;
     h += gearHTML();
   }
+  if (appClaude()) h += claudeKeyHTML();
   const u = imperial() ? "imperial" : "metric";
   h += `<section class="card"><details class="more"${S.advOpen ? " open" : ""}><summary>Advanced</summary><div class="stack"><span class="label">Units</span>
     <div class="seg">${[["metric", "Metric · kg, cm"], ["imperial", "Imperial · lb, ft"]].map(([k, l]) => `<button class="${u === k ? "on" : ""}" data-a="units" data-u="${k}">${l}</button>`).join("")}</div>
@@ -2920,6 +2979,12 @@ app.addEventListener("click", e => {
     case "coachdiscard": S.coach.draft = null; S.coach.status = "idle"; render(); break;
     case "coachapply": applyCoach(); break;
     case "chatsend": chatSend(); break;
+    case "claudesetup": S.settings = true; render(); { const el = document.getElementById("claudekey"); if (el) el.scrollIntoView({ block: "start" }); } break;
+    case "claudekey": {
+      const el = document.getElementById("claudekeyin"), key = el ? el.value.trim() : "";
+      if (!key) { S.keyErr = "Paste your API key first."; render(); break; }
+      S.keyBusy = true; S.keyErr = ""; nativeApp().postMessage({ type: "claudeKey", key }); render(); break;
+    }
     case "chatstop": if (chatCtl) chatCtl.abort(); break;
     case "chatask": if (b.dataset.send) chatSend(b.dataset.q); else { S.chat.draft = b.dataset.q; render(); const el = document.getElementById("chatin"); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } break;
     case "chatapply": chatApply(+b.dataset.i); break;
@@ -2961,6 +3026,7 @@ app.addEventListener("click", e => {
       const [kind, x, y] = id.split(":");
       if (kind === "rmex") { const ss = S.sessions.get(x); ss.exercises.splice(+y, 1); saveSession(ss); }
       else if (kind === "discard") { deleteSession(x); S.restAt = null; toast("Workout discarded."); return; }
+      else if (kind === "claudekeyrm") nativeApp().postMessage({ type: "claudeKey", key: "" });
       else if (kind === "chatclear") { chatJ().msgs = []; S.chat.err = ""; saveJourney(0); }
       else if (kind === "delsess") { deleteSession(x); S.sheetId = null; toast("Workout deleted."); return; }
       else if (kind === "rmgoal") { jr.goals = jr.goals.filter(g => g.id !== x); saveJourney(0); }
@@ -3045,6 +3111,7 @@ app.addEventListener("keydown", e => {
   if (e.key === "Enter" && t.dataset.a === "obnum") { e.preventDefault(); const ins = [...app.querySelectorAll('[data-a="obnum"]')], nx = ins[ins.indexOf(t) + 1]; if (nx) nx.focus(); else obNext(); return; }
   // Enter sends with a keyboard; on a phone Enter is a new line and the button sends
   if (e.key === "Enter" && t.id === "chatin" && !e.shiftKey && matchMedia("(pointer: fine)").matches) { e.preventDefault(); chatSend(); return; }
+  if (e.key === "Enter" && t.id === "claudekeyin") { e.preventDefault(); t.parentElement.querySelector("button").click(); return; }
   if (e.key === "Enter" && t.id === "swapin") { e.preventDefault(); doSwap(t.value.trim()); return; }
   if (e.key === "Enter" && t.tagName === "INPUT") {
     if (t.id && t.id.startsWith("addex-")) { e.preventDefault(); t.parentElement.querySelector("button").click(); return; }

@@ -470,7 +470,7 @@ const LEVELS = {
     ttb: { name: "Toes to bar", sets: 6, reps: "4-6 EMOM", rest: 60, note: "Kip from the lats, close the hip hard. Singles are fine." } },
   "4": { label: "4 · Solid kipping, moving to chest to bar", note: "Strict stays heavy. Kipping work moves to chest to bar and bigger unbroken sets.", pullWord: "chest to bar", ttbWord: "toes to bar",
     strict: { name: "Weighted strict pull-ups", sets: 5, reps: "3-5", rest: 150, note: "Heavy. Long rest." },
-    kip: { name: "Chest to bar", sets: 6, reps: "4-6 EMOM", rest: 60, note: "Drive hips to the bar, chest touches below the collarbone." },
+    kip: { name: "Kipping chest to bar", sets: 6, reps: "4-6 EMOM", rest: 60, note: "Drive hips to the bar, chest touches below the collarbone." },
     ttb: { name: "Toes to bar", sets: 6, reps: "6-10 EMOM", rest: 60, note: "Aim for unbroken sets of 10." } }
 };
 const level = () => LEVELS[(S.plan && S.plan.level) || "3"] || LEVELS["3"];
@@ -1004,7 +1004,7 @@ const MOVES = {
   core: [["Sit-ups", ""], ["GHD sit-ups", "ghd"], ["Hanging knee raises", "bar"], ["Ab wheel rollouts", ""], ["Plank", "", "", "s"], ["Dead bug", "", "Each side."], ["Hollow body hold", "", "", "s"], ["V-ups", ""]],
   calves: [["Calf raise", "dumbbells|machines"], ["Single-leg calf raise", ""]],
   power: [["Box jumps", "box", "Step down, don't jump down."], ["Broad jumps", ""], ["Jump squats", "", "Land softly."]],
-  kip: [["Kipping pull-ups", "bar"], ["Chest to bar", "bar"], ["Kip swing practice", "bar", "", "swings"], ["Band-assisted pull-ups", "bar"], ["Jumping pull-ups", "bar"], ["Ring rows", "rings"]],
+  kip: [["Kipping pull-ups", "bar"], ["Kipping chest to bar", "bar"], ["Kip swing practice", "bar", "", "swings"], ["Band-assisted pull-ups", "bar"], ["Jumping pull-ups", "bar"], ["Ring rows", "rings"]],
   ttb: [["Toes to bar", "bar"], ["Kipping knees to chest", "bar"], ["Hanging knee raises", "bar"], ["V-ups", ""]]
 };
 const SLOT_PT = { strict: "vpull", kip: "kip", ttb: "ttb" };
@@ -1109,7 +1109,7 @@ function skillEx(k, p) {
     [{ name: "Box pike push-ups", sets: 4, reps: "5-8", note: "Feet on a box, hips over your hands." + wr }, { name: "Handstand push-up negatives", sets: 4, reps: "2-3", note: "Against the wall. Lower for 4–5 s onto a pad." }],
     [{ name: "Handstand push-up negatives", sets: 4, reps: "3", note: "Against the wall. Lower for 4–5 s onto a pad." + wr }, { name: "Strict handstand push-ups", sets: 5, reps: "1-3", note: "Fresh singles are fine." }]][push >= 2 && hs >= 1 ? (push >= 3 ? 2 : 1) : 0];
   if (k === "muscleup") return pull < 2 ? [{ name: "Dips", sets: 3, reps: "3-8", note: "Parallel bars or rings. Lower slowly if you can't press up yet." }]
-    : pull < 4 ? [{ name: "Chest to bar pull-ups", sets: 5, reps: "2-4", note: "Pull hard and fast; chest touches the bar." }, { name: "Dips", sets: 3, reps: "8-12", note: "Parallel bars or rings." }]
+    : pull < 4 ? [{ name: "Kipping chest to bar", sets: 5, reps: "2-4", note: "Pull hard and fast; chest touches the bar." }, { name: "Dips", sets: 3, reps: "8-12", note: "Parallel bars or rings." }]
     : [{ name: "Muscle-up transitions", sets: 5, reps: "3", note: "Low bar or rings, feet on the floor. Drill the turn over the bar." }, { name: "Muscle-ups", sets: 5, reps: "1-2", note: "Fresh singles. Stop when they get ugly." }];
   if (k === "pullup") return [{ name: "Dead hang", sets: 3, reps: "20-40", unit: "s" }, { name: "Scapular pull-ups", sets: 3, reps: "6-10", note: "Arms straight. Pull your shoulders down and back." }];
   // kipping work follows the pull-up level in Settings, so it moves up with you
@@ -1404,11 +1404,11 @@ function goalMilestones(k, p) {
     ms = interleave(pulls([1, 3, 5, 8, 10, 12, 15, 20]).slice(0, 2), pushes([10, 20, 30, 40, 50]).slice(0, 2), legs);
   } else if (k === "fitness") ms = interleave(pushes([10, 20, 30, 40, 50]).slice(0, 2), pe ? pulls([3, 5, 8, 10, 15]).slice(0, 2) : [M("30 s dead hang", "Dead hang", 30, "s")], [M("60 s plank", "Plank", 60, "s"), M("2 min plank", "Plank", 120, "s")]);
   else if (k === "pullup") ms = [...(pe ? [] : [M("30 s dead hang", "Dead hang", 30, "s"), M("5 slow pull-up negatives", "Pull-up negatives", 5, "r")]), ...pulls([1, 3, 5])];
-  else if (k === "muscleup") ms = [...pulls([5, 10]), M("10 dips", "Dips", 10, "r"), ...(p.pull < 4 ? [M("5 chest-to-bar pull-ups", "Chest to bar pull-ups", 5, "r")] : []), M("First muscle-up", "Muscle-ups", 1, "r"), M("3 unbroken muscle-ups", "Muscle-ups", 3, "r")];
+  else if (k === "muscleup") ms = [...pulls([5, 10]), M("10 dips", "Dips", 10, "r"), ...(p.pull < 4 ? [M("5 kipping chest to bar", "Kipping chest to bar", 5, "r")] : []), M("First muscle-up", "Muscle-ups", 1, "r"), M("3 unbroken muscle-ups", "Muscle-ups", 3, "r")];
   else if (k === "handstand") ms = [[1, M("30 s wall handstand hold", "Wall handstand hold", 30, "s")], [2, M("60 s wall handstand hold", "Wall handstand hold", 60, "s")], [2, M("10 s freestanding handstand", "Freestanding handstand hold", 10, "s")], [3, M("30 s freestanding handstand", "Freestanding handstand hold", 30, "s")], [3, M("First 2 m handstand walk", "Handstand walk", 2, "m")], [9, M("5 m handstand walk", "Handstand walk", 5, "m")], [9, M("10 m unbroken handstand walk", "Handstand walk", 10, "m")]].filter(([lv]) => hs < lv).map(x => x[1]);
   else if (k === "hspu") { const lv = p.push >= 2 && hs >= 1 ? (p.push >= 3 ? 2 : 1) : 0; ms = [[1, M("10 pike push-ups", "Pike push-ups", 10, "r")], [1, M("5 box pike push-ups", "Box pike push-ups", 5, "r")], [2, M("3 slow handstand push-up negatives", "Handstand push-up negatives", 3, "r")], [9, M("First strict handstand push-up", "Strict handstand push-ups", 1, "r")], [9, M("5 strict handstand push-ups", "Strict handstand push-ups", 5, "r")]].filter(([l]) => lv < l).map(x => x[1]); }
   else if (k === "kipping") ms = [[1, M("8 kipping knees to chest", "Kipping knees to chest", 8, "r")], [2, M("5 linked kipping pull-ups", "Kipping pull-ups", 5, "r")], [2, M("First toes to bar", "Toes to bar", 1, "r")],
-    [3, M("10 unbroken kipping pull-ups", "Kipping pull-ups", 10, "r")], [3, M("5 unbroken toes to bar", "Toes to bar", 5, "r")], [9, M("10 unbroken toes to bar", "Toes to bar", 10, "r")], [9, M("5 chest to bar", "Chest to bar", 5, "r")]].filter(([lv]) => (p.kip || 0) < lv).map(x => x[1]);
+    [3, M("10 unbroken kipping pull-ups", "Kipping pull-ups", 10, "r")], [3, M("5 unbroken toes to bar", "Toes to bar", 5, "r")], [9, M("10 unbroken toes to bar", "Toes to bar", 10, "r")], [9, M("5 kipping chest to bar", "Kipping chest to bar", 5, "r")]].filter(([lv]) => (p.kip || 0) < lv).map(x => x[1]);
   return ms.slice(0, 6);
 }
 // benchmarks: the tests that show progress toward the chosen goals, at most five
@@ -2805,8 +2805,18 @@ app.addEventListener("focusout", () => setTimeout(() => {
   if (renderQueued && !typing()) { renderQueued = false; render(); }
 }, 50));
 
+// plans saved before an exercise was renamed get the new name: chest to bar is kipping only, the volume pulls stay strict
+const PLAN_RENAMES = { "strict pull-ups or chest to bar (volume)": ["Strict pull-ups (volume)", "Strict, no kip. Stop one rep before failure."], "chest to bar": ["Kipping chest to bar"], "chest to bar pull-ups": ["Kipping chest to bar"] };
+function fixPlanNames() {
+  let n = 0;
+  for (const d of (S.plan ? S.plan.days : [])) for (const e of d.exercises) {
+    const r = !e.slot && PLAN_RENAMES[norm(e.name)]; if (!r) continue;
+    e.name = r[0]; if (r[1]) e.note = r[1]; n++;
+  }
+  if (n) savePlan(0);
+}
 function render() {
-  renderQueued = false; memo.clear();
+  renderQueued = false; memo.clear(); fixPlanNames();
   if (!S.onb && needsOnb()) S.onb = newOnb();
   if (S.onb) {
     const o = S.onb, later = !!J().profile || !!(S.plan && S.plan.days.length) || finished().length > 0;
@@ -3012,7 +3022,7 @@ const DEMOS = {
 };
 // exercise name → drawing; the first match wins
 const DEMO_MAP = [[/handstand push|hspu/, "hspu"], [/handstand|wall walk/, "handstand"], [/pike push/, "pike"],
-  [/toes? to bar/, "ttb"], [/knee raise|knees to chest/, "kneeraise"], [/kip swing/, "kipswing"], [/kipping pull|butterfly pull/, "kippull"],
+  [/toes? to bar/, "ttb"], [/knee raise|knees to chest/, "kneeraise"], [/kip swing/, "kipswing"], [/kipping pull|kipping chest|butterfly pull/, "kippull"],
   [/dead hang/, "hang"], [/pull-?ups?|chin-?ups?|chest to bar|muscle-?up|scapular/, "pullup"], [/pulldown/, "pulldown"],
   [/cable row|seated row|machine row/, "cablerow"], [/\brows?\b/, "row"], [/face pull|pull-apart|reverse.*fly|y-raise/, "facepull"],
   [/lateral raise/, "lateral"], [/\bdips?\b/, "dips"], [/push-?ups?/, "pushup"], [/\bfly\b/, "fly"],

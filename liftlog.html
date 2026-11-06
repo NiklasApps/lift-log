@@ -1331,9 +1331,48 @@ function originalPlan() {
     "Keep 1–2 reps in reserve on accessories. Metcons are hard but stop when form breaks.",
     "Every 6th week: same exercises, half the sets (deload). Do the Test session that week in place of one regular day."] };
 }
-// switches to the original plan; the starting test still sets the pull-up level and working weights
-function useOriginalPlan() {
-  const p = J().profile, np = originalPlan();
+// Niklas's own Push / Pull split from his spreadsheet, on 3 days: push + squat, pull + hinge, and a day for the rest
+function pushPullPlan() {
+  const ex = (block, name, sets, reps, rest, note, more = {}) => ({ id: uid(), block, name, sets, reps, ...(rest ? { rest } : {}), ...(note ? { note } : {}), ...more });
+  const info = (block, name, reps, note) => ({ id: uid(), block, name, kind: "info", sets: 0, reps, note });
+  const test = originalPlan().days.find(d => d.test);
+  const days = [
+    { name: "Day 1 · Push + Squat", note: "Presses first while fresh. Butterfly and toes to bar alternate.", exercises: [
+      info("Warm-up", "Row or bike + shoulder prep", "8 min", "Easy pace, then band pull-aparts, light shoulder external rotation and 2 × 10 push-ups."),
+      ex("Main", "Bench press", 4, "5-8", 150, "Last rep hard but clean."),
+      ex("Main", "Overhead press", 3, "6-10", 120, "Strict press, glutes tight."),
+      ex("Superset", "Pec fly (butterfly machine)", 3, "10-15", 30, "Alternate with toes to bar: a set of butterfly, a set of toes to bar, then rest."),
+      ex("Superset", "Toes to bar", 3, "6-10", 90, "Right after the butterfly set. Rest after both.", { unit: "reps" }),
+      ex("Main", "Dips", 3, "8-12", 120, "Add weight once 3 × 12 is easy."),
+      ex("Arms", "Overhead triceps extension", 3, "10-15", 60),
+      ex("Legs", "Back squat or goblet squat", 3, "6-10", 120, "Moderate, not to failure.")] },
+    { name: "Day 2 · Pull + Hinge", note: "Pull-ups first while fresh.", exercises: [
+      info("Warm-up", "Row or bike + shoulder prep", "8 min", "Easy pace, then band pull-aparts, scap pull-ups and a 20 s dead hang."),
+      ex("Main", "Pull-ups / chest to bar", 4, "5-8", 120, "Strict pull-ups. Chest to bar (kipping) once 4 × 8 strict is easy."),
+      ex("Main", "Dumbbell row", 3, "8-12 / side", 90, "Pause at the hip."),
+      ex("Main", "Face pulls", 3, "12-15", 60, "Pull to the eyes, thumbs back."),
+      ex("Arms", "Dumbbell biceps curls", 3, "10-12", 60),
+      ex("Legs", "Romanian deadlift", 3, "8-10", 120, "Hamstrings and glutes. Moderate.")] },
+    { name: "Day 3 · Upper Volume + Legs", note: "Moderate weights, more reps.", exercises: [
+      info("Warm-up", "Shoulder external rotation", "2 × 15", "Light, with a cable or band."),
+      ex("Main", "Lat pulldown", 3, "10-12", 90, "Controlled, full stretch at the top."),
+      ex("Main", "Machine row", 3, "10-12", 90, "Squeeze 1 s at the chest."),
+      ex("Main", "Lateral raises", 3, "12-15", 60, "Light, slow on the way down."),
+      ex("Legs", "Bulgarian split squat or leg press", 3, "10", 90, "Split squats: 10 per leg."),
+      ex("Arms", "Barbell curls", 3, "12", 30, "Back to back with triceps pushdown, then rest."),
+      ex("Arms", "Triceps pushdown", 3, "12", 60, "Right after the curls."),
+      ex("Core", "Clean sit-ups", 3, "10-15", 45)] },
+    test
+  ].map(d => ({ id: uid(), ...d }));
+  return { level: (S.plan && S.plan.level) || "3", weeklyTarget: 3, days, rules: [
+    "When you hit the top of the rep range on every set, add 2.5 kg next time.",
+    "Keep 1–2 reps in reserve on arms and accessories.",
+    "Train the days in order (1, 2, 3). After a break, carry on with the next day.",
+    "Every 6th week: same exercises, half the sets (deload). Do the Test session that week in place of one regular day."] };
+}
+// switches to a ready-made plan; the starting test still sets the pull-up level and working weights
+function adoptPlan(np) {
+  const p = J().profile;
   if (S.plan && S.plan.gear) np.gear = S.plan.gear.slice();
   if (p && p.tested) {
     np.level = levelFor(p);
@@ -1345,6 +1384,7 @@ function useOriginalPlan() {
   }
   setPlan(np);
 }
+const useOriginalPlan = () => adoptPlan(originalPlan());
 function planRules(p) {
   const u = units(), R = [];
   if (p.experience === "new" || p.experience === "under1") R.push("First two weeks: pick weights that leave 3 reps in the tank and learn the movements.");
@@ -2674,7 +2714,9 @@ function settingsHTML() {
       ${usesLevel ? `<label class="label" for="level">Your pull-up level</label><select class="sel" id="level" data-a="level">${Object.entries(LEVELS).map(([k, L]) => `<option value="${k}"${(S.plan.level || "3") === k ? " selected" : ""}>${esc(L.label)}</option>`).join("")}</select>
       <p class="muted small" style="margin:0">${esc(level().note)} The pull-up and toes-to-bar exercises in your plan change with the level.</p>` : ""}
       <div class="row between"><span class="small">Original Upper Body Plan</span>${armBtn("origplan", "Use it", "Tap again to switch", "btn sm")}</div>
-      <p class="muted small" style="margin:0">Days A, B, C and Test Week as first set up. Your workouts and starting test results stay. The current plan is kept under Plan → Phases.</p></section>`;
+      <p class="muted small" style="margin:0">Days A, B, C and Test Week as first set up. Your workouts and starting test results stay. The current plan is kept under Plan → Phases.</p>
+      <div class="row between"><span class="small">Push / Pull / Upper + Legs</span>${armBtn("pushpull", "Use it", "Tap again to switch", "btn sm")}</div>
+      <p class="muted small" style="margin:0">Your Push and Pull days from the spreadsheet, on 3 days: push + squat, pull + hinge, upper volume + legs. Workouts stay, the current plan goes under Plan → Phases.</p></section>`;
     h += gearHTML();
   }
   if (appClaude()) h += claudeKeyHTML();
@@ -3281,6 +3323,7 @@ app.addEventListener("click", e => {
       else if (kind === "delsess") { deleteSession(x); S.sheetId = null; toast("Workout deleted."); return; }
       else if (kind === "rmgoal") { jr.goals = jr.goals.filter(g => g.id !== x); saveJourney(0); }
       else if (kind === "origplan") { useOriginalPlan(); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to the original Upper Body Plan."); return; }
+      else if (kind === "pushpull") { adoptPlan(pushPullPlan()); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to Push / Pull / Upper + Legs."); return; }
       else if (kind === "skiptest") { delete S.plan.start; S.pickDay = null; savePlan(0); toast("Test skipped. Pick weights that leave 2 reps in reserve."); return; }
       render(); break;
     }

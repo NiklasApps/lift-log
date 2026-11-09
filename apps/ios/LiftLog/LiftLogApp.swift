@@ -12,6 +12,11 @@ struct LiftLogApp: App {
             WebView()
                 .ignoresSafeArea()
                 .background(Color(uiColor: .appBackground).ignoresSafeArea())
+                .onAppear {
+                    // Putting the phone down jolts it enough to trigger iOS's
+                    // "Undo Typing" alert. Nobody shakes to undo mid-workout.
+                    UIApplication.shared.applicationSupportsShakeToEdit = false
+                }
         }
     }
 }

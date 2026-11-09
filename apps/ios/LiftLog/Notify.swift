@@ -15,14 +15,15 @@ enum Notify {
     }
 
     /// `at` is the rest's end in ms since 1970; 0 cancels it.
-    static func rest(at ms: Double, emom: Bool) {
+    /// `amrap`: it's the end of an AMRAP clock, not a rest.
+    static func rest(at ms: Double, emom: Bool, amrap: Bool = false) {
         center.removePendingNotificationRequests(withIdentifiers: [restID])
         let wait = ms / 1000 - Date().timeIntervalSince1970
         guard ms > 0, wait > 0.5 else { return }
         authorized {
             let c = UNMutableNotificationContent()
-            c.title = emom ? "Next round" : "Rest over"
-            c.body = "Time for your next set."
+            c.title = amrap ? "Time" : emom ? "Next round" : "Rest over"
+            c.body = amrap ? "AMRAP done. Write down your rounds + reps." : "Time for your next set."
             c.sound = .default
             center.add(UNNotificationRequest(identifier: restID, content: c,
                                              trigger: UNTimeIntervalNotificationTrigger(timeInterval: wait, repeats: false)))

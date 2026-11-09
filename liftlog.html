@@ -290,6 +290,20 @@ select.sel { width: 100%; height: 48px; border: 1px solid var(--line); border-ra
 .restbtn { border: 1px solid var(--line); background: var(--surface-2); color: var(--accent); border-radius: 8px; min-height: 32px; padding: 0 10px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 8px; }
 .restbar .pill.end { background: var(--accent); color: var(--accent-ink); }
 .restbar .pill.end button { color: var(--accent-ink); }
+/* AMRAP: a big clock and a round counter in place of the rest pill */
+.restbar.amrap .pill { flex-direction: column; align-items: stretch; gap: 10px; width: min(100%, 440px); border-radius: 22px; padding: 12px 14px 14px; }
+.restbar.amrap .amtop { display: flex; justify-content: space-between; align-items: center; }
+.restbar.amrap .amtop .label { color: inherit; opacity: .75; font-size: 13px; }
+.restbar.amrap .amtop button { min-height: 36px; }
+.restbar.amrap .amclock { text-align: center; font-size: 84px; min-width: 0; letter-spacing: -.01em; }
+.restbar.amrap .amrow { display: flex; align-items: center; gap: 10px; }
+.restbar.amrap .amn { min-width: 4.6em; text-align: center; line-height: 1.1; font-size: 13px; font-weight: 600; opacity: .85; }
+.restbar.amrap .amn b { display: block; font-size: 34px; min-width: 0; opacity: 1; }
+.restbar.amrap .amminus { min-height: 64px; min-width: 64px; padding: 0; font-size: 20px; border-radius: 14px; }
+.restbar.amrap .amplus { flex: 1; min-height: 64px; border-radius: 14px; background: var(--volt); color: var(--volt-ink); font-family: var(--f-display); font-weight: 800; font-stretch: 104%; text-transform: uppercase; letter-spacing: .03em; font-size: 20px; }
+.restbar.amrap .pill.end .amplus { background: var(--accent-ink); color: var(--accent); }
+.restbar.amrap .amminus:disabled { opacity: .4; }
+.amspace { height: 240px; }
 .slotnote { font-size: 12px; color: var(--muted); }
 .tests { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 .tcard { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -2001,7 +2015,10 @@ function editorHTML(s, live) {
       return;
     }
     if (ex.kind === "metcon") {
-      h += `<section class="ex metcon" data-ex="${i}"><div class="exhead"><h3>${esc(ex.name)}</h3></div>${ex.wod ? `<p class="wod">${esc(ex.wod)}</p>` : ""}${note}
+      const am = live ? amrapMin(ex) : 0;
+      const clock = !am ? "" : S.restAt && S.restWork && S.restI === i ? ""
+        : `<button class="restbtn" data-a="amrapstart" data-i="${i}" data-min="${am}">Start ${am}:00 AMRAP timer</button><span class="muted small" style="display:block;margin-top:4px">${AMRAP_LEAD} s to get ready, a beep on go${am > 2 ? ", one with a minute left" : ""}, an alarm at the end.</span>`;
+      h += `<section class="ex metcon" data-ex="${i}"><div class="exhead"><h3>${esc(ex.name)}</h3></div>${ex.wod ? `<p class="wod">${esc(ex.wod)}</p>` : ""}${note}${clock}
         <div class="row" style="margin-top:10px;flex-wrap:nowrap"><label class="label" for="sc-${s.id}-${i}">Score</label><input class="textin" id="sc-${s.id}-${i}" data-a="score" data-i="${i}" value="${esc(ex.score || "")}" placeholder="e.g. 5 rounds + 12" autocomplete="off" enterkeyhint="done"></div>
         <div class="exfoot" style="justify-content:flex-end">${rmBtn}</div></section>`;
       return;
@@ -2875,7 +2892,8 @@ function render() {
   let h = topbar(titles[S.view], true, S.view === "coach" && (J().chat || {}).msgs?.length && !S.chat.busy ? armBtn("chatclear", "New chat", "Tap to clear", "linkbtn") : "");
   h += `<main class="wrap">${body}</main>`;
   if (S.view === "coach" && chatOn()) h += composerHTML();
-  if (S.restAt && activeSession() && S.view === "train") h += `<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b><button data-a="restoff">Hide</button></div></div></div>`;
+  if (S.restAt && activeSession() && S.view === "train" && S.restWork) h += `<div class="amspace"></div>` + amrapBar();
+  else if (S.restAt && activeSession() && S.view === "train") h +=`<div class="restbar"><div class="wrap"><div class="pill${restOver() ? " end" : ""}"><span class="label" style="color:inherit;opacity:.7" data-restl>${restLabel()}</span><b data-rest>${restText()}</b><button data-a="restoff">Hide</button></div></div></div>`;
   h += navHTML();
   if (S.sheetId && S.sessions.get(S.sheetId)) {
     const s = S.sessions.get(S.sheetId);
@@ -2903,10 +2921,17 @@ function toast(msg) { S.toast = msg; clearTimeout(toastT); toastT = setTimeout((
 setInterval(() => {
   app.querySelectorAll("[data-clock]").forEach(el => el.textContent = mmss(Date.now() - Number(el.dataset.clock)));
   const r = app.querySelector("[data-rest]"); if (r && S.restAt) r.textContent = restText();
+  // AMRAP cues: a beep on "go" and one with a minute left (when it's longer than 2 minutes)
+  if (amrapOn()) {
+    const l = app.querySelector("[data-restl]"); if (l) l.textContent = restLabel();
+    if (!(S.restCues & 1) && !amrapLead()) { S.restCues |= 1; beep(); }
+    if (!(S.restCues & 2) && S.restWork > 120 && restLeft() <= 60000) { S.restCues |= 2; beep(); }
+  }
   if (S.restAt && !S.restBeeped && restOver()) {
     S.restBeeped = true; beep();
     const p = app.querySelector(".restbar .pill"); if (p) p.classList.add("end");
     const l = app.querySelector("[data-restl]"); if (l) l.textContent = restLabel();
+    const sb = S.restWork && app.querySelector(".restbar.amrap [data-a=arm]"); if (sb) sb.outerHTML = `<button data-a="restoff">Done</button>`;
   }
 }, 250);
 // the iPhone app sounds the rest alarm when the phone is locked or in another app, and sends the Wednesday reminder
@@ -2914,7 +2939,7 @@ let sentRest = null, sentLast = null;
 function syncNative() {
   const n = nativeApp(); if (!n) return;
   const end = S.restAt && activeSession() ? Math.round(S.restAt + S.restLen * 1000) : 0;
-  if (end !== sentRest) { sentRest = end; n.postMessage({ type: "restAlarm", at: end > Date.now() ? end : 0, emom: !!S.restEmom }); }
+  if (end !== sentRest) { sentRest = end; n.postMessage({ type: "restAlarm", at: end > Date.now() ? end : 0, emom: !!S.restEmom, amrap: S.restWork > 0 }); }
   if (!S.sessionsLoaded) return;
   const last = (finished()[0] || {}).date || "";
   if (last !== sentLast) { sentLast = last; n.postMessage({ type: "weekly", last }); }
@@ -2946,14 +2971,32 @@ function restFor(s, i, j) {
   return Math.min(600, Math.max(30, Math.round(sec / 15) * 15));
 }
 let actx = null;
-function startRest(sec, emom = false) {
+// work > 0: an AMRAP clock, `sec` long in all, the last `work` seconds of it the AMRAP itself
+function startRest(sec, emom = false, work = 0) {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.resume) actx.resume(); } catch { actx = null; }
-  S.restAt = Date.now(); S.restLen = Number(sec) || 90; S.restBeeped = false; S.restEmom = emom;
+  S.restAt = Date.now(); S.restLen = Number(sec) || 90; S.restBeeped = false; S.restEmom = emom; S.restWork = work; S.restCues = 0;
 }
 const restLeft = () => S.restLen * 1000 - (Date.now() - S.restAt);
 const restOver = () => restLeft() <= 0;
-const restText = () => restOver() ? "0:00" : mmss(restLeft() + 999);
-const restLabel = () => restOver() ? "Next set" : S.restEmom ? "Next round" : "Rest";
+// AMRAP: still in the countdown before it starts
+const amrapLead = () => S.restWork > 0 && restLeft() > S.restWork * 1000;
+const amrapOn = () => !!S.restAt && S.restWork > 0 && !restOver();
+const restText = () => restOver() ? "0:00" : mmss(restLeft() - (amrapLead() ? S.restWork * 1000 : 0) + 999);
+const restLabel = () => S.restWork ? (restOver() ? "Time" : amrapLead() ? "Starts in" : "AMRAP") : restOver() ? "Next set" : S.restEmom ? "Next round" : "Rest";
+// the AMRAP panel: big clock, rounds so far, a big +1 button. Rounds live on the metcon (ex.rounds).
+function amrapBar() {
+  const ex = activeSession().exercises[S.restI] || {}, n = ex.rounds || 0, over = restOver();
+  return `<div class="restbar amrap" role="region" aria-label="AMRAP timer"><div class="wrap"><div class="pill${over ? " end" : ""}">
+    <div class="amtop"><span class="label" data-restl>${restLabel()}</span>${over ? `<button data-a="restoff">Done</button>` : armBtn("amrapstop", "Stop", "Tap to stop", "amstop")}</div>
+    <b class="amclock" data-rest>${restText()}</b>
+    <div class="amrow"><button class="amminus" data-a="amrapround" data-d="-1" aria-label="Take off a round"${n ? "" : " disabled"}>−1</button>
+      <span class="amn" aria-live="polite"><b>${n}</b>${n === 1 ? "round" : "rounds"}</span>
+      <button class="amplus" data-a="amrapround" data-d="1">+1 Round</button></div></div></div></div>`;
+}
+// minutes of an AMRAP from the metcon's name or text: "AMRAP 12", "12 min AMRAP", "12 min, as many rounds as you can"
+const AMRAP_LEAD = 10;
+const roundsTxt = n => n + (n === 1 ? " round" : " rounds");
+const amrapMin = ex => { const m = `${ex.name || ""}\n${ex.wod || ""}`.match(/\bamrap\s*(\d{1,2})\b|\b(\d{1,2})\s*(?:min(?:ute)?s?|')[\s,:]*(?:amrap\b|as many rounds)/i); const n = m ? +(m[1] || m[2]) : 0; return n >= 1 && n <= 60 ? n : 0; };
 function beep() {
   try { if (actx) [0, .25, .5].forEach(o => { const g = actx.createGain(), os = actx.createOscillator(); os.frequency.value = 880; g.gain.value = .15; os.connect(g).connect(actx.destination); os.start(actx.currentTime + o); os.stop(actx.currentTime + o + .15); }); } catch {}
   try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch {}
@@ -3293,7 +3336,8 @@ app.addEventListener("click", e => {
         if (st.w == null && b.dataset.phw) st.w = parseNum(b.dataset.phw);
         if (st.r == null && b.dataset.phr) st.r = parseNum(b.dataset.phr);
         if (!(st.r > 0)) { const inp = document.getElementById(`r-${s.id}-${i}-${j}`); if (inp) inp.focus(); toast("Enter the reps first."); return; }
-        st.done = true; if (!S.sheetId) { const ex = s.exercises[i], sec = restFor(s, i, j); if (sec) startRest(sec, isEmom(ex) && ex.sets.some(x => !x.done)); else S.restAt = null; }
+        // a running AMRAP clock keeps going: ticking a set doesn't swap it for a rest timer
+        st.done = true; if (!S.sheetId && !amrapOn()) { const ex = s.exercises[i], sec = restFor(s, i, j); if (sec) startRest(sec, isEmom(ex) && ex.sets.some(x => !x.done)); else S.restAt = null; }
       } else st.done = false;
       saveSession(s, 300); render(); break;
     }
@@ -3311,6 +3355,19 @@ app.addEventListener("click", e => {
     case "restoff": S.restAt = null; render(); break;
     case "rest": startRest(b.dataset.sec); render(); break;
     case "emomstart": s.exercises[+b.dataset.i].emomAt = Date.now(); saveSession(s, 0); startRest(60, true); render(); break;
+    case "amrapstart": {
+      const m = +b.dataset.min, ex = s.exercises[+b.dataset.i];
+      // a fresh start counts from zero (and drops a score the counter filled in)
+      if (ex.rounds && ex.score === roundsTxt(ex.rounds)) ex.score = ""; if (ex.rounds) { ex.rounds = 0; saveSession(s); }
+      startRest(AMRAP_LEAD + m * 60, false, m * 60); S.restI = +b.dataset.i; render(); break; }
+    case "amrapround": {
+      // rounds also fill in the score ("5 rounds") until you type your own
+      const ex = s.exercises[S.restI]; if (!ex) break;
+      const was = ex.rounds || 0, n = Math.max(0, was + +b.dataset.d), auto = !ex.score || ex.score === roundsTxt(was);
+      ex.rounds = n; if (auto) ex.score = n ? roundsTxt(n) : "";
+      if (+b.dataset.d > 0 && nativeApp()) nativeApp().postMessage({ type: "haptic" });
+      saveSession(s); render(); break;
+    }
         case "arm": {
       const id = b.dataset.id;
       if (S.armed !== id) { S.armed = id; render(); clearTimeout(window.__armT); window.__armT = setTimeout(() => { if (S.armed === id) { S.armed = null; render(); } }, 4000); return; }
@@ -3324,6 +3381,7 @@ app.addEventListener("click", e => {
       else if (kind === "rmgoal") { jr.goals = jr.goals.filter(g => g.id !== x); saveJourney(0); }
       else if (kind === "origplan") { useOriginalPlan(); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to the original Upper Body Plan."); return; }
       else if (kind === "pushpull") { adoptPlan(pushPullPlan()); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to Push / Pull / Upper + Legs."); return; }
+      else if (kind === "amrapstop") S.restAt = null;
       else if (kind === "skiptest") { delete S.plan.start; S.pickDay = null; savePlan(0); toast("Test skipped. Pick weights that leave 2 reps in reserve."); return; }
       render(); break;
     }

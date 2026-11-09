@@ -157,7 +157,7 @@ main.wrap { padding-block: 4px calc(var(--nav-h) + 96px); display: flex; flex-di
 .steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
 .exhead .tgt { color: var(--muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .last { font-size: 13px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
-.sugg { font-size: 13px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.sugg { font-size: 13px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .sugg b { color: var(--ink); font-weight: 700; }
 .sets { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .setrow { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 48px; gap: 8px; align-items: center; }
@@ -506,8 +506,8 @@ const S = {
   plan: null, planLoaded: false,
   journey: null, journeyLoaded: false,   // phases, goals, benchmarks, exercise links
   sessions: new Map(), sessionsLoaded: false,
-  progTab: (t => ["lifts", "bench", "goals", "trophies"].includes(t) ? t : "lifts")(ls.get("liftlog.progTab")),
-  planTab: ls.get("liftlog.planTab") === "phases" ? "phases" : "plan", planEdit: null, phaseForm: null, settings: false,
+  progTab: (t => ["overview", "lifts", "bench", "goals"].includes(t) ? t : "overview")(ls.get("liftlog.progTab")),
+  planTab: (t => ["plan", "setup", "phases"].includes(t) ? t : "plan")(ls.get("liftlog.planTab")), planEdit: null, phaseForm: null, settings: false,
   view: (() => { const h = location.hash.slice(1); return VIEWS.includes(h) ? h : VIEWS.includes(ls.get("liftlog.view")) ? ls.get("liftlog.view") : "train"; })(),
   sheetId: null,
   calMonth: null, calDay: null,
@@ -517,7 +517,7 @@ const S = {
   onb: null, onbLater: false,  // questionnaire in progress; skipped for this visit
   chat: { busy: false, live: "", err: "", draft: "" }, chatScroll: false   // Coach tab: the reply being written, the unsent message
 };
-// one app-wide setting (Settings → Advanced): metric is kg and cm, imperial is lb and ft/in
+// one app-wide setting (Settings -> Units): metric is kg and cm, imperial is lb and ft/in
 const imperial = () => (J().settings || {}).units === "imperial";
 const units = () => imperial() ? "lb" : "kg";
 
@@ -1126,7 +1126,7 @@ function skillEx(k, p) {
     : pull < 4 ? [{ name: "Kipping chest to bar", sets: 5, reps: "2-4", note: "Pull hard and fast; chest touches the bar." }, { name: "Dips", sets: 3, reps: "8-12", note: "Parallel bars or rings." }]
     : [{ name: "Muscle-up transitions", sets: 5, reps: "3", note: "Low bar or rings, feet on the floor. Drill the turn over the bar." }, { name: "Muscle-ups", sets: 5, reps: "1-2", note: "Fresh singles. Stop when they get ugly." }];
   if (k === "pullup") return [{ name: "Dead hang", sets: 3, reps: "20-40", unit: "s" }, { name: "Scapular pull-ups", sets: 3, reps: "6-10", note: "Arms straight. Pull your shoulders down and back." }];
-  // kipping work follows the pull-up level in Settings, so it moves up with you
+  // kipping work follows the pull-up level in Plan -> Setup, so it moves up with you
   if (k === "kipping") { const lv = LEVELS[levelFor(p)]; return p.limits.includes("shoulders") ? [] : [{ slot: "kip", ...lv.kip }, { slot: "ttb", ...lv.ttb }]; }
   return [];
 }
@@ -1276,11 +1276,11 @@ function buildUpper(p) {
   const days = [A, B, C, D].slice(0, n).map(d => ({ id: uid(), name: d.name, note: d.note, exercises: fit(d.ex).map(e => ({ id: uid(), ...e })) }));
   const R = [`Strength lifts: when you hit the top of the rep range on every set, add ${u === "lb" ? "5 lb" : "2.5 kg"} next time.`];
   if (p.experience === "new" || p.experience === "under1") R.unshift("First two weeks: pick weights that leave 3 reps in the tank and learn the movements.");
-  if (kip) R.push("Strict before kipping, always. Kipping is a skill on top of strength, not a replacement for it.", "Move up a pull-up level when you can do the current level's sets with clean form two sessions in a row. The level is in Settings.");
+  if (kip) R.push("Strict before kipping, always. Kipping is a skill on top of strength, not a replacement for it.", "Move up a pull-up level when you can do the current level's sets with clean form two sessions in a row. The level is under Plan → Setup.");
   R.push("Keep 1–2 reps in reserve on accessories." + (met ? " Metcons are hard but stop when form breaks." : ""), "Every 6th week: same exercises, half the sets (deload). Do the Benchmarks session that week in place of one regular day.");
   const W = [`${n} days a week, about ${p.minutes} minutes each: ${andJoin(days.map(d => d.name.split(" · ")[1].toLowerCase()))}.`,
     "Upper body comes first. Legs get one lift a day, enough to keep them strong."];
-  if (kip) W.push(`Kipping pull-ups and toes to bar follow your pull-up level (${lv.label.split(" · ")[1]}), set from your answers. Change it in Settings as you improve.`);
+  if (kip) W.push(`Kipping pull-ups and toes to bar follow your pull-up level (${lv.label.split(" · ")[1]}), set from your answers. Change it under Plan → Setup as you improve.`);
   else if (skill.length) W.push(`${andJoin(p.goals.filter(k => SKILL_SIDE[k]).map(goalName))} practice comes first on Day B while you're fresh.`);
   if (met) W.push("Short metcons keep your engine going without taking over the week.");
   const miss = (p.missing || []).filter(k => (GEAR_BASE[p.equip] || []).includes(k));
@@ -1405,7 +1405,7 @@ function planRules(p) {
   if (p.equip !== "bw") R.push(`When every set reaches the top of the rep range, add weight next time: ${u === "lb" ? "5 lb" : "2.5 kg"} on upper-body lifts, ${u === "lb" ? "10 lb" : "5 kg"} on legs.`);
   R.push("Bodyweight exercises: add reps until you reach the top of the range, then move to the harder version.");
   if (p.goals.some(k => SKILL_SIDE[k])) R.push("Skill work comes first. Stop a set when your form breaks.");
-  if (p.goals.includes("kipping")) R.push("Strict before kipping, always. Move up a pull-up level in Settings when the current sets feel clean two sessions in a row.");
+  if (p.goals.includes("kipping")) R.push("Strict before kipping, always. Move up a pull-up level under Plan → Setup when the current sets feel clean two sessions in a row.");
   R.push("Every 6th week: same exercises, half the sets (deload).", "Test your benchmarks every 6 weeks on the Benchmarks day. Lift Log reminds you.");
   return R;
 }
@@ -1520,12 +1520,27 @@ function syncGoals(p) {
   }
   memo.clear();
 }
+// days per week and the pull-up level live in the plan and the profile: a change in one is made in the other, so they never disagree
+function setWeekly(n) {
+  if (S.plan) S.plan.weeklyTarget = n;
+  const p = J().profile;
+  if (p && n >= 2 && n <= 6 && p.days !== n) { p.days = n; saveJourney(); }
+}
+function levelToProfile(lv) {
+  const p = J().profile; if (!p || p.pull == null || levelFor(p) === lv) return;
+  if (lv === "1") p.pull = Math.min(p.pull, 1);
+  else if (lv === "2") p.pull = 2;
+  else { p.pull = Math.max(p.pull, 3); p.kip = lv === "4" ? Math.max(p.kip || 0, 3) : Math.min(p.kip || 0, 2); }
+  saveJourney(0);
+}
 function applyProfile(p, usePlan, plan) {
   const j = S.journey;
   j.profile = { ...clone(p), updatedAt: todayStr() };
   syncGoals(p);
   j.benchmarks = buildBench(p).map(b => j.benchmarks.find(x => same(x.name, b.name)) || b);
   if (usePlan) setPlan(plan || buildPlan(p));
+  // kept plan: it still follows the profile's days per week and pull-up level
+  else if (S.plan) { S.plan.weeklyTarget = p.days; if (S.plan.level && p.pull != null) S.plan.level = levelFor(p); savePlan(0); }
   const ph = curPhase(); if (ph && !ph.focus) ph.focus = p.goals.map(goalName).join(", ");
   saveJourney(0);
 }
@@ -1855,7 +1870,7 @@ function obRecapHTML(o) {
     <section class="card stack"><h2>Your plan</h2>${tl && tl.status === "busy" ? `<p class="muted small" role="status" style="margin:0">Claude is fitting the plan to what you wrote…</p>` : ""}<ul class="rules">${r.why.map(w => `<li>${esc(w)}</li>`).join("")}</ul></section>
     <section class="card stack"><h2>Your week</h2>${o.test ? `<p class="small" style="margin:0"><b>First up: a starting test.</b> It finds the weights you start with and how many pull-ups and push-ups you can do. Your exercises, goals and benchmarks are then set from the results.</p>` : ""}
     ${r.days.map(d => `<div class="dday"><b>${esc(d.name)}</b><ul class="exlist">${d.exercises.map(resolveEx).map(e => `<li><span${e.kind ? ' class="muted"' : ""}>${esc(e.name)}${changed.has(e.id) ? ' <span class="tag acc">Claude</span>' : ""}</span><span class="tgt">${e.kind ? "" : esc(exTarget(e) + (e.unit ? " " + e.unit : ""))}</span></li>`).join("")}</ul></div>`).join("")}
-    <p class="muted small" style="margin:0">Gym missing something? Set your equipment under Settings, or tap Swap next to any exercise under Plan.</p></section>
+    <p class="muted small" style="margin:0">Gym missing something? Set your equipment under Plan → Setup, or tap Swap next to any exercise.</p></section>
     <section class="card stack"><h2>Goals</h2>${o.test ? `<p class="muted small" style="margin:0">Milestones start from your starting test results.</p>` : ""}${p.goals.map(k => `<div class="dday"><b>${esc(goalName(k))}</b><ul class="rules">${goalMilestones(k, p).map(m => `<li>${esc(m.name)}</li>`).join("")}</ul></div>`).join("")}</section>
     <section class="card stack"><h2>Benchmarks</h2><p class="muted small" style="margin:0">Tested every 6 weeks, always the same, so you can see your progress.</p><ul class="exlist">${bs.map(b => `<li><span>${esc(b.name)}</span><span class="tgt">${benchUnit({ unit: b.unit })}</span></li>`).join("")}</ul>
     ${S.plan && S.plan.days.length ? `<label class="check"><input type="checkbox" data-a="obuseplan"${o.usePlan ? " checked" : ""}>Replace my current plan. You can restore the old one under Plan → Phases.</label>` : ""}</section>
@@ -1947,9 +1962,11 @@ function calibrate(s) {
 /* ---------- views ---------- */
 function topbar(title, gear, extra = "") { return `<header class="topbar"><div class="wrap"><h1>${ICON.mark}${esc(title)}</h1><div class="tbr">${syncHTML()}${extra}${gear ? `<button class="iconbtn" data-a="settings" aria-label="Settings">${ICON.gear}</button>` : ""}</div></div></header>`; }
 function navHTML() {
-  const t = [["train", "Train", ICON.train], ["history", "History", ICON.hist], ["progress", "Progress", ICON.prog], ["plan", "Plan", ICON.plan], ["coach", "Coach", ICON.coach]];
+  const t = [["train", "Train", ICON.train], ["history", "Log", ICON.hist], ["progress", "Progress", ICON.prog], ["plan", "Plan", ICON.plan], ["coach", "Coach", ICON.coach]];
   return `<nav class="tabs"><div class="wrap">${t.map(([k, l, i]) => `<button data-a="view" data-v="${k}" class="${S.view === k ? "on" : ""}" aria-current="${S.view === k ? "page" : "false"}">${i}${l}</button>`).join("")}</div></nav>`;
 }
+// the one prompt to fill in the profile, the same wherever it's missing
+const profileAsk = (h2 = "Tell Lift Log about you") => `<section class="card stack" style="border-color:var(--accent)"><h2>${h2}</h2><p class="muted small" style="margin:0">A few questions about you, your sport history, goals and week. Your plan, goals and benchmarks are set from your answers.</p><button class="btn primary" data-a="obstart">Answer a few questions</button></section>`;
 function armBtn(id, label, armedLabel, cls = "btn sm danger") {
   const on = S.armed === id;
   return `<button class="${cls}${on ? " armed" : ""}" data-a="arm" data-id="${esc(id)}">${on ? armedLabel : label}</button>`;
@@ -1959,8 +1976,9 @@ function viewTrain() {
   if (!S.planLoaded || !S.sessionsLoaded) return `<div class="card empty"><h2>Loading</h2><p class="muted">Fetching your plan and workouts.</p></div>`;
   const act = activeSession();
   if (act) return editorHTML(act, true);
+  // a finished workout takes the whole screen until you're done looking at it
+  if (S.justFinished && S.sessions.get(S.justFinished)) return finishedCard(S.sessions.get(S.justFinished)) + `<button class="btn primary big" data-a="dismissdone">Done</button>`;
   let h = "";
-  if (S.justFinished && S.sessions.get(S.justFinished)) h += finishedCard(S.sessions.get(S.justFinished));
   if (!S.plan || !S.plan.days.length) {
     return h + `<div class="card empty stack"><h2>Set up your plan</h2><p class="muted">Answer a few questions about you, your sport history and your goals, and Lift Log builds your plan, goals and benchmarks.</p>
       ${J().profile ? `<button class="btn primary big" data-a="rebuild">Build my plan</button>` : `<button class="btn primary big" data-a="obstart">Answer a few questions</button>`}<button class="btn" data-a="blankplan">Build my own</button></div>`;
@@ -1968,10 +1986,11 @@ function viewTrain() {
   const ws = weekStats(), js = journeyStats(), nd = nextDay(), wt = Number(S.plan.weeklyTarget) || 0;
   h += `<section class="card strip"><div><span class="label">This week</span><b>${ws.thisWeek}${wt ? `<span class="muted"> / ${wt}</span>` : ""}</b></div>
     <div><span class="label">Streak</span><b>${ws.cur} <span class="muted">wk</span></b></div>
-    <button data-a="gototrophies" aria-label="Level ${js.level}, ${fmtInt(js.toNext)} XP to the next level"><span class="label">Level</span><b>${js.level}</b><span class="meter"><i style="width:${js.pct}%"></i></span></button></section>`;
-  if (!J().profile) h += `<section class="card stack" style="border-color:var(--accent)"><h2>Tell Lift Log about you</h2><p class="muted small" style="margin:0">A few questions about your body, sport history, goals and week. Your goals, benchmarks and plan are then set from your answers.</p><button class="btn primary" data-a="obstart">Answer a few questions</button></section>`;
+    <button data-a="goto" data-v="progress" data-t="overview" aria-label="Level ${js.level}, ${fmtInt(js.toNext)} XP to the next level"><span class="label">Level</span><b>${js.level}</b><span class="meter"><i style="width:${js.pct}%"></i></span></button></section>`;
+  // one notice at a time: a due test beats the profile prompt
   const td = testDay();
-  if (td && testDue() && S.pickDay !== td.id) h += `<section class="card stack" style="border-color:var(--accent)"><h2>Test due</h2><p class="muted small" style="margin:0">${finished().some(isTestSession) ? "It's been 6 weeks since your last test." : "Set your baseline."} Do ${esc(td.name || "the test day")} in place of one regular workout this week. +${XP.test} XP.</p><button class="btn" data-a="pickday" data-id="${td.id}">Show ${esc(td.name || "test day")}</button></section>`;
+  if (!(td && testDue() && S.pickDay !== td.id)) { if (!J().profile) h += profileAsk(); }
+  else h += `<section class="card stack" style="border-color:var(--accent)"><h2>Test due</h2><p class="muted small" style="margin:0">${finished().some(isTestSession) ? "It's been 6 weeks since your last test." : "Set your baseline."} Do ${esc(td.name || "the test day")} in place of one regular workout this week. +${XP.test} XP.</p><button class="btn" data-a="pickday" data-id="${td.id}">Show ${esc(td.name || "test day")}</button></section>`;
   const pick = S.pickDay && findDay(S.pickDay) || nd;
   const days = [...(startDay() ? [startDay()] : []), ...S.plan.days.map(d => d.test ? td || d : d)];
   if (td && !planTestDay()) days.push(td);
@@ -2029,7 +2048,7 @@ function editorHTML(s, live) {
     const pr = ds.length && isPR(ex.name, s, ex), sg = live ? suggestFor(ex, s) : null;
     h += `<section class="ex${complete ? " complete" : ""}" data-ex="${i}">
       <div class="exhead"><h3><button class="exname" data-a="demo" data-i="${i}" aria-label="How to do ${esc(ex.name)}">${esc(ex.name)}${ICON.info}</button>${pr ? '<span class="pr">PR</span>' : ""}</h3>${ex.target ? `<span class="tgt">${esc(ex.target)}</span>` : ""}</div>
-      <div class="last">${ld ? `Start with ${fmt(ex.load)} ${u}, from your starting test` : last ? `Last time, ${shortDate(last.date)}: ${last.sets.map(st => fmt(st.w) + "×" + st.r).join(", ")}` : "First time logging this"}</div>
+      ${sg ? "" : `<div class="last">${ld ? `Start with ${fmt(ex.load)} ${u}, from your starting test` : last ? `Last time, ${shortDate(last.date)}: ${last.sets.map(st => fmt(st.w) + "×" + st.r).join(", ")}` : "First time logging this"}</div>`}
       ${sg ? `<div class="sugg"><b>Today: ${sg.w ? fmt(sg.w) + " " + u + " × " : ""}${sg.r}${sg.w ? "" : " reps"}</b> <span>${esc(sg.why)}</span></div>` : ""}
       ${!live ? "" : isEmom(ex) ? (ex.emomAt || ex.sets.some(x => x.done) ? "" : `<button class="restbtn" data-a="emomstart" data-i="${i}">Start EMOM clock</button>`) : ex.rest ? `<button class="restbtn" data-a="rest" data-sec="${ex.rest}">Rest ${mmss(ex.rest * 1000)}</button>` : ""}
       <div class="sets"><div class="colhead"><span>Set</span><span>Weight</span><span>${esc(ru)}</span><span></span></div>`;
@@ -2066,18 +2085,12 @@ function editorHTML(s, live) {
 
 function viewHistory() {
   if (!S.sessionsLoaded) return `<div class="card empty"><h2>Loading</h2></div>`;
-  const ws = weekStats(), fin = finished();
+  const fin = finished();
   const now = new Date();
   const cm = S.calMonth || (now.getFullYear() + "-" + pad(now.getMonth() + 1));
   const [cy, cmo] = cm.split("-").map(Number);
   const byDay = new Map(); for (const s of fin) { if (!byDay.has(s.date)) byDay.set(s.date, []); byDay.get(s.date).push(s); }
-  let h = `<div class="stats">
-    <div class="stat"><span class="label">This week</span><b>${ws.thisWeek}</b><span class="sub">workouts</span></div>
-    <div class="stat"><span class="label">This month</span><b>${ws.thisMonth}</b><span class="sub">workouts</span></div>
-    <div class="stat"><span class="label">Week streak</span><b>${ws.cur}</b><span class="sub">best ${ws.best} weeks</span></div>
-    <div class="stat"><span class="label">All time</span><b>${ws.total}</b><span class="sub">workouts</span></div></div>`;
-  h += `<section class="card stack"><div class="row between"><h2>Workouts per week</h2><span class="muted small">last 12 weeks</span></div>${weekBars(ws.weeks)}
-    <p class="muted small" style="margin:0">Average ${fmt([...Array(12)].reduce((a, _, i) => { const d = monday(new Date()); d.setDate(d.getDate() - 7 * i); return a + (ws.weeks.get(ymd(d)) || 0); }, 0) / 12)} per week. A week counts toward the streak when you trained at least once.</p></section>`;
+  let h = "";
   const first = new Date(cy, cmo - 1, 1), lead = (first.getDay() + 6) % 7, days = new Date(cy, cmo, 0).getDate();
   const monthName = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const inMonth = fin.filter(s => s.date.startsWith(cm));
@@ -2122,12 +2135,12 @@ const segHTML = (a, cur, opts) => `<div class="seg" role="tablist">${opts.map(([
 function viewProgress() {
   if (!S.sessionsLoaded) return `<div class="card empty"><h2>Loading</h2></div>`;
   const tab = S.progTab;
-  return `<div class="seg four" role="tablist">${[["lifts", "Lifts"], ["bench", "Benchmarks"], ["goals", "Goals"], ["trophies", "Trophies"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "on" : ""}" data-a="progtab" data-v="${k}">${l}</button>`).join("")}</div>`
-    + ({ bench: progBench, goals: progGoals, trophies: progTrophies }[tab] || progLifts)();
+  return `<div class="seg four" role="tablist">${[["overview", "Overview"], ["lifts", "Lifts"], ["bench", "Benchmarks"], ["goals", "Goals"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? "on" : ""}" data-a="progtab" data-v="${k}">${l}</button>`).join("")}</div>`
+    + ({ lifts: progLifts, bench: progBench, goals: progGoals }[tab] || progOverview)();
 }
 
 function progBench() {
-  return testsHTML() || `<div class="card empty stack"><h2>No benchmarks yet</h2><p class="muted">Benchmarks are a few tests you repeat every 6 weeks, always the same, so you can see your progress. They're set from your goals.</p><button class="btn primary" data-a="progtab" data-v="goals">Pick goals</button></div>`;
+  return testsHTML() || `<div class="card empty stack"><h2>No benchmarks yet</h2><p class="muted">Benchmarks are a few tests you repeat every 6 weeks, always the same, so you can see your progress. They're set from your goals.</p>${J().profile ? `<button class="btn primary" data-a="goto" data-v="plan" data-t="setup">Pick goals</button>` : `<button class="btn primary" data-a="obstart">Answer a few questions</button>`}</div>`;
 }
 
 // goals: milestones first, then the picker; milestones come from the profile
@@ -2135,7 +2148,7 @@ function progGoals() {
   const p = J().profile, all = J().goals || [];
   const rank = x => x.g.status === "parked" ? 2 : x.st.done ? 1 : 0;
   const gs = all.map(g => ({ g, st: goalState(g) })).sort((a, b) => rank(a) - rank(b));
-  let h = gs.length ? "" : `<div class="card empty stack"><h2>No goals yet</h2><p class="muted">Pick a goal, like a handstand walk or a muscle-up. Lift Log sets its milestones from your profile, and each one you reach shows up here with its date.</p></div>`;
+  let h = gs.length ? "" : `<div class="card empty stack"><h2>No goals yet</h2><p class="muted">Pick a goal, like a handstand walk or a muscle-up. Lift Log sets its milestones from your profile, and each one you reach shows up here with its date.</p>${p ? `<button class="btn primary" data-a="goto" data-v="plan" data-t="setup">Pick goals</button>` : ""}</div>`;
   for (const { g, st } of gs) {
     const tag = st.done ? `<span class="tag good">Reached ${shortDate(st.date)}</span>` : g.status === "parked" ? `<span class="tag">Parked</span>` : `<span class="tag acc">${st.n} / ${st.total}</span>`;
     // goals picked in the questionnaire follow the picker; others (from Claude or older versions) are parked or removed here
@@ -2144,10 +2157,15 @@ function progGoals() {
       ${st.total ? `<div class="meter${st.done ? " good" : ""}"><i style="width:${Math.round(st.n / st.total * 100)}%"></i></div>` : ""}
       <ul class="mslist">${st.ms.map(x => msItem(g, x, st)).join("") || '<li class="muted small">No milestones yet.</li>'}</ul>${own}</section>`;
   }
-  if (!p) return h + `<section class="card stack"><p class="muted small" style="margin:0">To pick goals, answer a few questions about you first. Lift Log sets their milestones and benchmarks from your answers.</p><button class="btn primary" data-a="obstart">Answer a few questions</button></section>`;
-  const act = p.goals, built = S.plan && S.plan.goalKeys, stale = built && built.join() !== act.join();
-  return h + `<section class="card stack"><details class="more"${gs.length && !S.goalsOpen ? "" : " open"}><summary>Change goals</summary><div class="stack"><p class="muted small" style="margin:0">Pick up to three. Their milestones are set from your profile and tick themselves when you log them.</p>
-    <div class="opts">${GOALS.filter(([k]) => k !== "pullup" || p.pull < 2 || act.includes(k)).map(([k, n, d]) => { const on = act.includes(k), g = all.find(x => x.key === k); return `<button class="opt${on ? " on" : ""}" data-a="goaltog" data-k="${k}" aria-pressed="${on}"><b>${esc(n)}${g && goalState(g).done ? " · reached" : ""}</b><span>${esc(d)}</span></button>`; }).join("")}</div></div></details>
+  if (!p) return h + profileAsk("Goals come from your profile");
+  return h + (gs.length ? `<button class="linkbtn" style="align-self:center" data-a="goto" data-v="plan" data-t="setup">Change goals in Plan → Setup</button>` : "");
+}
+// the goal picker, in Plan -> Setup: goals shape the plan, so they're chosen next to it
+function goalsPickHTML() {
+  const p = J().profile; if (!p) return "";
+  const all = J().goals || [], act = p.goals, built = S.plan && S.plan.goalKeys, stale = built && built.join() !== act.join();
+  return `<section class="card stack"><h2>Goals</h2><p class="muted small" style="margin:0">Pick up to three. Their milestones are set from your profile and tick themselves when you log them. Follow them under Progress → Goals.</p>
+    <div class="opts">${GOALS.filter(([k]) => k !== "pullup" || p.pull < 2 || act.includes(k)).map(([k, n, d]) => { const on = act.includes(k), g = all.find(x => x.key === k); return `<button class="opt${on ? " on" : ""}" data-a="goaltog" data-k="${k}" aria-pressed="${on}"><b>${esc(n)}${g && goalState(g).done ? " · reached" : ""}</b><span>${esc(d)}</span></button>`; }).join("")}</div>
     ${stale ? `<div class="banner">Your plan was built for ${esc(built.map(goalName).join(", "))}. <button class="linkbtn" style="min-height:0;padding:0" data-a="rebuild">Rebuild it for these goals</button></div>` : !built ? `<button class="btn" data-a="rebuild">Build my plan from these goals</button>` : ""}</section>`;
 }
 function msItem(g, x, st) {
@@ -2175,16 +2193,24 @@ function phasesTable() {
   if (items.length) body += `<tr class="grp"><td colspan="${cols.length + 1}">Best benchmark result</td></tr>` + items.map(e => row(e.name + " (" + (e.unit || units()) + ")", cols.map(c => bval(c, e)), 1, true)).join("");
   return `<section class="card stack"><div class="row between"><h2>Phases side by side</h2><span class="muted small">${ps.length} ${ps.length === 1 ? "phase" : "phases"}</span></div>
     <div class="scrollx"><table class="tbl cmp"><thead><tr><th></th>${cols.map(c => `<th>${esc(c.p.name || "Phase")}<br><span style="text-transform:none;letter-spacing:0;font-weight:500">${shortDate(c.p.start)} – ${c.p.end ? shortDate(c.p.end) : "now"}</span></th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
-    <p class="muted small" style="margin:0">${ps.length === 1 ? "Start a new phase and it gets its own column here, measured on the same benchmarks." : "Change is against the phase before."}${items.length ? "" : " Pick goals under Progress → Goals and their benchmarks compare phases on the same tests."}</p></section>`;
+    <p class="muted small" style="margin:0">${ps.length === 1 ? "Start a new phase and it gets its own column here, measured on the same benchmarks." : "Change is against the phase before."}${items.length ? "" : " Pick goals under Setup and their benchmarks compare phases on the same tests."}</p></section>`;
 }
 
-function progTrophies() {
-  const js = journeyStats(), recent = js.ev.slice(-12).reverse();
-  let h = `<section class="card stack"><div class="lvl"><div><span class="label">Level</span><b>${js.level}</b></div><span class="muted small num" style="text-align:right">${fmtInt(js.xp)} XP<br>${fmtInt(js.toNext)} to level ${js.level + 1}</span></div><div class="meter"><i style="width:${js.pct}%"></i></div>
+function progOverview() {
+  const ws = weekStats(), js = journeyStats(), recent = js.ev.slice(-12).reverse();
+  let h = `<div class="stats">
+    <div class="stat"><span class="label">This week</span><b>${ws.thisWeek}</b><span class="sub">workouts</span></div>
+    <div class="stat"><span class="label">This month</span><b>${ws.thisMonth}</b><span class="sub">workouts</span></div>
+    <div class="stat"><span class="label">Week streak</span><b>${ws.cur}</b><span class="sub">best ${ws.best} weeks</span></div>
+    <div class="stat"><span class="label">All time</span><b>${ws.total}</b><span class="sub">workouts</span></div></div>`;
+  h += `<section class="card stack"><div class="row between"><h2>Workouts per week</h2><span class="muted small">last 12 weeks</span></div>${weekBars(ws.weeks)}
+    <p class="muted small" style="margin:0">Average ${fmt([...Array(12)].reduce((a, _, i) => { const d = monday(new Date()); d.setDate(d.getDate() - 7 * i); return a + (ws.weeks.get(ymd(d)) || 0); }, 0) / 12)} per week. A week counts toward the streak when you trained at least once.</p></section>`;
+  h += recordsHTML();
+  h += `<section class="card stack"><div class="lvl"><div><span class="label">Level</span><b>${js.level}</b></div><span class="muted small num" style="text-align:right">${fmtInt(js.xp)} XP<br>${fmtInt(js.toNext)} to level ${js.level + 1}</span></div><div class="meter"><i style="width:${js.pct}%"></i></div>
     <ul class="rules"><li>Workout +${XP.workout}, benchmark test +${XP.test}, each PR +${XP.pr}</li><li>Milestone +${XP.milestone}, goal reached +${XP.goal}, phase finished +${XP.phase}</li></ul></section>`;
   h += `<section class="card stack"><div class="row between"><h2>Trophies</h2><span class="muted small">${js.earned} of ${js.total}</span></div><div class="badges">${js.trophies.map(t => badgeHTML(t)).join("")}</div>
     <p class="muted small" style="margin:0">Each row shows the trophies you have and the next one to unlock.</p></section>`;
-  if (recent.length) h += `<section class="card"><h2 style="margin-bottom:8px">Recent XP</h2><div class="scrollx"><table class="tbl"><tbody>${recent.map(e => `<tr><td style="white-space:nowrap">${shortDate(e.date)}</td><td>${esc(e.what)}</td><td>+${e.xp}</td></tr>`).join("")}</tbody></table></div></section>`;
+  if (recent.length) h += `<section class="card"><details class="more"><summary>Recent XP</summary><div class="scrollx"><table class="tbl"><tbody>${recent.map(e => `<tr><td style="white-space:nowrap">${shortDate(e.date)}</td><td>${esc(e.what)}</td><td>+${e.xp}</td></tr>`).join("")}</tbody></table></div></details></section>`;
   return h;
 }
 
@@ -2216,7 +2242,15 @@ function progLifts() {
     ${metric === "e1rm" ? `<p class="muted small" style="margin:0">Estimated with the Epley formula from your best set each workout: weight × (1 + reps ÷ 30).</p>` : ""}</section>`;
   h += `<section class="card"><h2 style="margin-bottom:8px">Recent workouts</h2><div class="scrollx"><table class="tbl"><thead><tr><th>Date</th><th>Sets</th><th>Best set</th><th>${bw ? "Reps" : "Est. 1RM"}</th></tr></thead><tbody>
     ${hist.slice(-12).reverse().map(p => `<tr><td>${shortDate(p.date)}</td><td>${p.sets.length}</td><td>${fmt(p.bestSet.w)} × ${p.bestSet.r}</td><td>${bw ? p.maxR : fmt(p.e1rm)}</td></tr>`).join("")}</tbody></table></div></section>`;
-  // all-exercise records
+  return h;
+}
+// best set of every exercise you've logged
+function recordsHTML() {
+  const counts = new Map();
+  for (const s of finished()) for (const ex of s.exercises || []) if (doneSets(ex).length) { const nm = canon(ex.name), k = norm(nm); if (!counts.has(k)) counts.set(k, { name: nm }); }
+  const exs = [...counts.values()].sort((a, b) => a.name.localeCompare(b.name)), u = units();
+  if (!exs.length) return "";
+  let h = "";
   const recs = exs.map(e => { const hh = exerciseHistory(e.name); const b = hh.reduce((a, p) => (p.e1rm || p.maxR) > (a.e1rm || a.maxR) ? p : a, hh[0]); return { name: e.name, b }; });
   h += `<section class="card"><h2 style="margin-bottom:8px">Personal records</h2><div class="scrollx"><table class="tbl"><thead><tr><th>Exercise</th><th>Best set</th><th>Est. 1RM</th></tr></thead><tbody>
     ${recs.map(r => `<tr><td>${esc(r.name)}</td><td>${fmt(r.b.bestSet.w)} × ${r.b.bestSet.r}<br><span class="muted small">${shortDate(r.b.date)}</span></td><td>${r.b.e1rm ? fmt(r.b.e1rm) + " " + u : r.b.maxR + " reps"}</td></tr>`).join("")}</tbody></table></div></section>`;
@@ -2234,7 +2268,7 @@ function aliasHTML(name) {
 /* ---------- plan: goals, benchmarks, phases ---------- */
 function profileCard() {
   const p = J().profile;
-  if (!p) return `<section class="card stack"><h2>Your profile</h2><p class="muted small" style="margin:0">Answer a few questions and Lift Log sets your goals, benchmarks and plan from them.</p><button class="btn primary" data-a="obstart">Answer a few questions</button></section>`;
+  if (!p) return profileAsk("Your profile");
   return `<section class="card stack"><div class="row between"><h2>Your profile</h2><div class="row" style="gap:6px"><button class="btn sm" data-a="obstart">Edit answers</button><button class="btn sm" data-a="obstart" data-fresh="1">Start over</button></div></div><ul class="rules">${profileLines(p).map(l => `<li>${esc(l)}</li>`).join("")}</ul></section>`;
 }
 function phasesEditor() {
@@ -2244,10 +2278,9 @@ function phasesEditor() {
     <input class="textin dayname" data-a="phname" value="${esc(p.name)}" placeholder="Phase name" aria-label="Phase name">
     <input class="textin" data-a="phfocus" value="${esc(p.focus || "")}" placeholder="Focus, e.g. handstand walk and muscle-up" aria-label="Phase focus">`;
   if (!S.phaseForm) h += `<p class="muted small" style="margin:0">Changing your plan for a new goal? Start a new phase. This plan is kept with this phase, your history stays, and the table below compares the phases side by side. Finishing a phase earns +${XP.phase} XP.</p>
-    <div class="row"><button class="btn primary" data-a="phform">Start a new phase</button>${coachOn() && !(S.coach && S.coach.mode === "adjust") ? `<button class="btn" data-a="coachopen">Adjust plan with Claude</button>` : ""}</div>`;
+    <div class="row"><button class="btn primary" data-a="phform">Start a new phase</button>${chatOn() ? `<button class="btn" data-a="coachopen">Ask your coach</button>` : ""}</div>`;
   if (p.prevPlans && p.prevPlans.length && !S.phaseForm) h += `<button class="linkbtn" style="align-self:flex-start" data-a="planrestore">Restore the plan from before the last change</button>`;
   h += `</section>`;
-  if (S.coach && S.coach.mode === "adjust" && !S.phaseForm) h += `<section class="card stack" style="border-color:var(--accent)"><h2>Adjust with Claude</h2>${coachHTML(S.coach)}</section>`;
   if (S.phaseForm) h += phaseFormHTML(S.phaseForm);
   if (past.length) h += `<section class="card stack"><h2>Earlier phases</h2>${past.map(q => { const k = phaseSessions(q).length; return `<div class="goalmini"><div class="row between"><strong>${esc(q.name)}</strong><span class="muted small num">${shortDate(q.start)} – ${q.end ? shortDate(q.end) : "now"}</span></div>${q.focus ? `<span class="muted small">${esc(q.focus)}</span>` : ""}
     <span class="muted small">${k} ${k === 1 ? "workout" : "workouts"}${q.plan ? " · " + q.plan.days.map(d => esc(d.name || "Untitled")).join(", ") : ""}</span>${q.plan ? `<button class="linkbtn" style="align-self:flex-start" data-a="phform" data-plan="${q.id}">Start a new phase with this plan</button>` : ""}</div>`; }).join("")}</section>`;
@@ -2602,7 +2635,7 @@ function chgLines(chg) {
     else if (c.op === "add") { const x = c.exercise || {}; L.push(`${at}add ${cstr(x.name, 60)}${nums(x) ? " " + nums(x) : ""}`); }
     else if (c.op === "remove") L.push(`${at}remove ${cstr(c.name, 60)}`);
   }
-  if (chg.weeklyTarget) L.push(`Workouts per week: ${(chg.was ?? (S.plan && S.plan.weeklyTarget)) || "–"} → ${chg.weeklyTarget}`);
+  if (chg.weeklyTarget) L.push(`Days per week:${(chg.was ?? (S.plan && S.plan.weeklyTarget)) || "–"} → ${chg.weeklyTarget}`);
   return L;
 }
 // Claude's changes go through the same checks as the questionnaire's: only exercises that exist, clamped numbers
@@ -2615,7 +2648,7 @@ function chatApply(i) {
   if (JSON.stringify(np) === JSON.stringify(S.plan)) { toast("Those changes don't match your plan as it is now."); return; }
   const p = curPhase();
   if (p) p.prevPlans = [clone(S.plan), ...(p.prevPlans || [])].slice(0, 3);
-  S.plan = np; savePlan(0);
+  S.plan = np; if (m.changes.weeklyTarget) setWeekly(np.weeklyTarget); savePlan(0);
   m.status = "applied"; saveJourney(0);
   toast("Plan updated.");
 }
@@ -2686,7 +2719,7 @@ function swapHTML(e, live) {
     <div class="addex"><input id="swapin" class="textin" list="exnames-swap" placeholder="Or type another exercise" autocomplete="off" enterkeyhint="done" aria-label="Another exercise"><button class="btn" data-a="swapto">Use</button></div>
     <datalist id="exnames-swap">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>
     ${live ? `<p class="muted small" style="margin:0">${pe ? "Changes today's workout and this day in your plan." : "Changes today's workout only."}</p>` : ""}
-    <p class="muted small" style="margin:0">Missing equipment? Set what your gym has under Settings, and Lift Log swaps the rest for you.</p></div>`;
+    <p class="muted small" style="margin:0">Missing equipment? Set what your gym has under Plan → Setup, and Lift Log swaps the rest for you.</p></div>`;
 }
 const findPlanEx = id => { for (const d of (S.plan ? S.plan.days : [])) { const e = d.exercises.find(x => x.id === id); if (e) return e; } return null; };
 // the plan exercise a workout exercise came from: by id, or by name on the workout's day (plans rebuilt since keep the day)
@@ -2722,25 +2755,31 @@ function gearHTML() {
     ${S.plan && S.plan.days.length ? `<button class="btn" data-a="gearfit">Fit my plan to this equipment</button>` : ""}</section>`;
 }
 
-// Settings (gear in the top bar): profile, training targets, and units under Advanced
-function settingsHTML() {
-  let h = profileCard();
+// Plan -> Setup: everything the plan is built from (profile, goals, week, level, ready-made plans, equipment)
+function planSetupHTML() {
+  let h = profileCard() + goalsPickHTML();
   if (S.plan) {
     const usesLevel = S.plan.days.some(d => d.exercises.some(e => e.slot || /\{(pull|ttb)\}/.test(e.wod || "")));
-    h += `<section class="card stack"><h2>Training</h2><div class="row between"><label class="label" for="wtarget">Workouts per week</label><input class="textin" id="wtarget" data-a="wtarget" inputmode="numeric" value="${S.plan.weeklyTarget || ""}" placeholder="–" style="flex:0 0 72px;text-align:center"></div>
+    h += `<section class="card stack"><h2>Your week</h2><div class="row between"><label class="label" for="wtarget">Days per week</label><input class="textin" id="wtarget" data-a="wtarget" inputmode="numeric" value="${S.plan.weeklyTarget || ""}" placeholder="–" style="flex:0 0 72px;text-align:center"></div>
       ${usesLevel ? `<label class="label" for="level">Your pull-up level</label><select class="sel" id="level" data-a="level">${Object.entries(LEVELS).map(([k, L]) => `<option value="${k}"${(S.plan.level || "3") === k ? " selected" : ""}>${esc(L.label)}</option>`).join("")}</select>
       <p class="muted small" style="margin:0">${esc(level().note)} The pull-up and toes-to-bar exercises in your plan change with the level.</p>` : ""}
-      <div class="row between"><span class="small">Original Upper Body Plan</span>${armBtn("origplan", "Use it", "Tap again to switch", "btn sm")}</div>
-      <p class="muted small" style="margin:0">Days A, B, C and Test Week as first set up. Your workouts and starting test results stay. The current plan is kept under Plan → Phases.</p>
+      ${J().profile ? `<p class="muted small" style="margin:0">Both are part of your profile, so changing them here changes it there too.</p>` : ""}
+      <span class="label">Ready-made plans</span><div class="row between"><span class="small">Original Upper Body Plan</span>${armBtn("origplan", "Use it", "Tap again to switch", "btn sm")}</div>
+      <p class="muted small" style="margin:0">Days A, B, C and Test Week as first set up. Your workouts and starting test results stay. The current plan is kept under Phases.</p>
       <div class="row between"><span class="small">Push / Pull / Upper + Legs</span>${armBtn("pushpull", "Use it", "Tap again to switch", "btn sm")}</div>
-      <p class="muted small" style="margin:0">Your Push and Pull days from the spreadsheet, on 3 days: push + squat, pull + hinge, upper volume + legs. Workouts stay, the current plan goes under Plan → Phases.</p></section>`;
+      <p class="muted small" style="margin:0">Push + squat, pull + hinge, upper volume + legs, on 3 days. Your workouts stay, the current plan is kept under Phases.</p></section>`;
     h += gearHTML();
   }
+  return h;
+}
+// Settings (gear in the top bar): only the app's own settings: Claude, units, backup
+function settingsHTML() {
+  let h = "";
   if (appClaude()) h += claudeKeyHTML();
   const u = imperial() ? "imperial" : "metric";
-  h += `<section class="card"><details class="more"${S.advOpen ? " open" : ""}><summary>Advanced</summary><div class="stack"><span class="label">Units</span>
+  h += `<section class="card stack"><h2>Units</h2>
     <div class="seg">${[["metric", "Metric · kg, cm"], ["imperial", "Imperial · lb, ft"]].map(([k, l]) => `<button class="${u === k ? "on" : ""}" data-a="units" data-u="${k}">${l}</button>`).join("")}</div>
-    <p class="muted small" style="margin:0">Changes the labels only. Weights you already logged stay as you typed them.</p></div></details></section>`;
+    <p class="muted small" style="margin:0">Changes the labels only. Weights you already logged stay as you typed them.</p></section>`;
   h += `<section class="card stack" id="yourdata"><h2>Your data</h2>
     <p class="muted small" style="margin:0">A backup holds your plan, phases, goals and every workout. Use it to move to another device or to the iPhone app.</p>
     <div class="row"><button class="btn sm" data-a="backup">Save backup</button><button class="btn sm" data-a="backupcopy">Copy backup</button></div>
@@ -2791,19 +2830,25 @@ function restoreBackup(text) {
 
 function viewPlan() {
   if (!S.planLoaded) return `<div class="card empty"><h2>Loading</h2></div>`;
-  const seg = segHTML("plantab", S.planTab, [["plan", "Workouts"], ["phases", "Phases"]]);
+  const seg = segHTML("plantab", S.planTab, [["plan", "Workouts"], ["setup", "Setup"], ["phases", "Phases"]]);
   if (S.planTab === "phases") return seg + phasesEditor() + phasesTable();
+  if (S.planTab === "setup") return seg + planSetupHTML();
   if (!S.plan) return seg + `<div class="card empty stack"><h2>No plan yet</h2><p class="muted">Lift Log builds it from your answers about you, your sport history and your goals.</p>${J().profile ? `<button class="btn primary big" data-a="rebuild">Build my plan</button>` : `<button class="btn primary big" data-a="obstart">Answer a few questions</button>`}<button class="btn" data-a="blankplan">Build my own</button></div>`;
   const why = S.plan.why || [], rules = S.plan.rules || [];
   let h = seg;
   if (why.length || rules.length) h += `<section class="card"><details class="more"><summary>About this plan</summary><div class="stack">
     ${why.length ? `<span class="label">Why this plan</span><ul class="rules">${why.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
     ${rules.length ? `<span class="label">How to progress</span><ul class="rules">${rules.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}</div></details></section>`;
-  S.plan.days.forEach((d, di) => { h += S.planEdit === d.id ? dayEditHTML(d, di) : dayReadHTML(d, di); });
-  h += `<datalist id="exnames-plan">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>`;
+  // the rotation first, then the test day, which only comes up every 6 weeks
+  const card = (d, di) => S.planEdit === d.id ? dayEditHTML(d, di) : dayReadHTML(d, di);
+  S.plan.days.forEach((d, di) => { if (!d.test) h += card(d, di); });
   h += `<button class="btn" data-a="dayadd">+ Add workout day</button>`;
+  S.plan.days.forEach((d, di) => { if (d.test) h += card(d, di); });
+  h += `<datalist id="exnames-plan">${knownExercises().map(n => `<option value="${esc(n)}"></option>`).join("")}</datalist>`;
   return h;
 }
+// "Day 2" counts only the days in the rotation; the test day is labelled as such
+const dayLabel = (d, di) => d.test ? "Every 6 weeks" : "Day " + (S.plan.days.slice(0, di + 1).filter(x => !x.test).length);
 const blockHead = (d, ei) => { const b = d.exercises[ei].block; return b && b !== (ei ? d.exercises[ei - 1].block : "") ? `<div class="blockh">${esc(b)}</div>` : ""; };
 // a day as you'll train it: nothing to tap by accident, Edit opens the fields
 function dayReadHTML(d, di) {
@@ -2817,15 +2862,15 @@ function dayReadHTML(d, di) {
     rows.push(`<li><span${e.kind === "info" ? ' class="muted"' : ""}>${esc(e.name)}${e.note ? `<br><span class="muted small">${esc(e.note)}</span>` : ""}${e.kind === "metcon" && e.wod ? `<span class="wod">${esc(e.wod)}</span>` : ""}</span>${tgt}</li>`);
   });
   return `<section class="card dayed" data-day="${di}">
-    <div class="row between"><span class="label">Day ${di + 1}</span><button class="btn sm" data-a="dayedit" data-d="${di}">Edit</button></div>
-    <h2>${esc(d.name || "Day " + (di + 1))}</h2>
-    ${d.test ? `<p class="muted small" style="margin:0">Test day: not part of the normal rotation. The app reminds you every 6 weeks.</p>` : ""}
+    <div class="row between"><span class="label">${dayLabel(d, di)}</span><button class="btn sm" data-a="dayedit" data-d="${di}">Edit</button></div>
+    <h2>${esc(d.name || (d.test ? "Test day" : dayLabel(d, di)))}</h2>
+    ${d.test ? `<p class="muted small" style="margin:0">Not part of the rotation. Train reminds you when it's due.</p>` : ""}
     ${(`<ul class="exlist">${rows.join("")}</ul>`).replace(/<ul class="exlist"><\/ul>/g, "") || '<p class="muted small" style="margin:0">No exercises yet. Tap Edit to add some.</p>'}</section>`;
 }
 function dayEditHTML(d, di) {
   const first = d.exercises.findIndex(e => !e.kind && !e.slot);
   return `<section class="card dayed" data-day="${di}">
-    <div class="row between"><span class="label">Day ${di + 1}</span><button class="btn sm primary" data-a="daydone">Done</button></div>
+    <div class="row between"><span class="label">${dayLabel(d, di)}</span><button class="btn sm primary" data-a="daydone">Done</button></div>
     <input class="textin dayname" id="dn-${d.id}" data-a="dayname" data-d="${di}" value="${esc(d.name)}" placeholder="Day name, e.g. Upper A" aria-label="Day name">
     ${d.exercises.map((e0, ei) => { const e = resolveEx(e0), fx = e0.slot ? " disabled" : "", sw = !!(S.swap && S.swap.d === di && S.swap.e === ei);
       const nameIn = `<input id="en-${e.id}" data-a="exname" data-d="${di}" data-e="${ei}" value="${esc(e.name)}" placeholder="Exercise" list="exnames-plan" aria-label="Exercise name"${fx}>`;
@@ -2887,7 +2932,7 @@ function render() {
     o.focus = false;
     return;
   }
-  const titles = { train: activeSession() ? "Workout" : "Train", history: "History", progress: "Progress", plan: "Plan", coach: "Coach" };
+  const titles = { train: activeSession() ? "Workout" : "Train", history: "Log", progress: "Progress", plan: "Plan", coach: "Coach" };
   const body = { train: viewTrain, history: viewHistory, progress: viewProgress, plan: viewPlan, coach: viewCoach }[S.view]();
   let h = topbar(titles[S.view], true, S.view === "coach" && (J().chat || {}).msgs?.length && !S.chat.busy ? armBtn("chatclear", "New chat", "Tap to clear", "linkbtn") : "");
   h += `<main class="wrap">${body}</main>`;
@@ -3230,7 +3275,7 @@ app.addEventListener("click", e => {
     case "restoreopen": obStop(); S.onb = null; S.onbLater = true; S.settings = true; render(); { const el = document.getElementById("yourdata"); if (el) el.scrollIntoView({ block: "start" }); } break;
     case "demo": { const ex = !S.sheetId && s && s.exercises[+b.dataset.i]; if (ex) { S.demo = { name: ex.name, note: ex.note || "" }; render(); } break; }
     case "closedemo": S.demo = null; render(); break;
-    case "closesettings": S.settings = false; S.advOpen = false; render(); break;
+    case "closesettings": S.settings = false; render(); break;
     case "obstart": obStop(); S.onb = newOnb(!!b.dataset.fresh); S.onbLater = false; S.settings = false; window.scrollTo(0, 0); render(); break;
     case "oblater": obStop(); S.onb = null; S.onbLater = true; window.scrollTo(0, 0); render(); break;
     case "obnext": obNext(); break;
@@ -3278,14 +3323,20 @@ app.addEventListener("click", e => {
       if (on && p.goals.length === 1) { toast("Keep at least one goal."); return; }
       if (!on && p.goals.length >= 3) { toast("Up to three goals at a time. Turn one off first."); return; }
       p.goals = on ? p.goals.filter(x => x !== k) : [...p.goals, k];
-      S.goalsOpen = true; applyProfile(p, false); render(); break;
+      applyProfile(p, false); render(); break;
     }
     case "rebuild": setPlan(buildPlan(jr.profile)); saveJourney(0); toast("Plan built from your profile and goals."); break;
     case "blankplan": makePlan(BLANK()); S.view = "plan"; render(); break;
     case "pickday": S.pickDay = b.dataset.id; if (b.dataset.go) { S.view = b.dataset.go; window.scrollTo(0, 0); } render(); break;
-    case "progtab": S.goalsOpen = false; S.progTab = b.dataset.v; ls.set("liftlog.progTab", S.progTab); render(); break;
+    case "progtab": S.progTab = b.dataset.v; ls.set("liftlog.progTab", S.progTab); render(); break;
     case "plantab": S.planTab = b.dataset.v; ls.set("liftlog.planTab", S.planTab); render(); break;
-    case "gototrophies": S.view = "progress"; S.progTab = "trophies"; ls.set("liftlog.view", S.view); ls.set("liftlog.progTab", S.progTab); window.scrollTo(0, 0); render(); break;
+    // jump to a tab and one of its sections, e.g. Plan -> Setup
+    case "goto": {
+      const v = b.dataset.v, t = b.dataset.t; S.view = v; S.settings = false; ls.set("liftlog.view", v);
+      if (t && v === "progress") { S.progTab = t; ls.set("liftlog.progTab", t); }
+      if (t && v === "plan") { S.planTab = t; ls.set("liftlog.planTab", t); }
+      window.scrollTo(0, 0); render(); break;
+    }
     case "gpark": goal().status = goal().status === "parked" ? "active" : "parked"; saveJourney(0); render(); break;
     case "mstick": {
       const m = ms();
@@ -3308,7 +3359,8 @@ app.addEventListener("click", e => {
     case "phstart":
       if (S.phaseForm.plan === "ai" && !(S.coach && S.coach.draft)) { toast(S.coach && S.coach.status === "busy" ? "Wait for Claude's draft first." : "Draft the plan with Claude first, or pick another plan."); return; }
       startPhase(); break;
-    case "coachopen": openCoach("adjust"); render(); { const el = document.getElementById("cg"); if (el) { el.scrollIntoView({ block: "center" }); el.focus(); } } break;
+    // adjusting the plan is a chat with the coach: its changes come with Apply and Undo
+    case "coachopen": S.view = "coach"; ls.set("liftlog.view", S.view); if (!S.chat.draft.trim()) S.chat.draft = "Adjust my plan to where I am now: "; S.chatScroll = true; render(); { const el = document.getElementById("chatin"); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } break;
     case "coachrun": runCoach(); break;
     case "coachstop": if (coachCtl) coachCtl.abort(); break;
     case "coachclose": S.coach = null; render(); break;
@@ -3395,7 +3447,7 @@ app.addEventListener("click", e => {
     case "opensess": S.sheetId = b.dataset.id; render(); break;
     case "closesheet": S.sheetId = null; render(); break;
     case "metric": S.progMetric = b.dataset.m; ls.set("liftlog.progMetric", S.progMetric); render(); break;
-    case "units": jr.settings = { ...jr.settings, units: b.dataset.u }; S.advOpen = true; saveJourney(0); render(); break;
+    case "units": jr.settings = { ...jr.settings, units: b.dataset.u }; saveJourney(0); render(); break;
     case "dayedit": closeDayEdit(); S.planEdit = S.plan.days[+b.dataset.d].id; render(); { const el = document.getElementById("dn-" + S.planEdit); if (el) el.closest(".card").scrollIntoView({ block: "start" }); } break;
     case "daydone": closeDayEdit(); render(); break;
     case "dayadd": { closeDayEdit(); const nd = { id: uid(), name: "", exercises: [{ id: uid(), name: "", sets: 3, reps: "8-10" }] }; S.plan.days.push(nd); S.planEdit = nd.id; savePlan(); render(); const el = document.getElementById("dn-" + nd.id); if (el) { el.scrollIntoView({ block: "center" }); el.focus(); } break; }
@@ -3422,7 +3474,7 @@ app.addEventListener("input", e => {
   else if (a === "score") {
     const s = editingSession(); if (!s) return;
     s.exercises[+t.dataset.i].score = t.value; saveSession(s, 900);
-  } else if (a === "wtarget") { const n = parseInt(t.value, 10); S.plan.weeklyTarget = n > 0 && n <= 14 ? n : 0; savePlan(); }
+  } else if (a === "wtarget") { const n = parseInt(t.value, 10); setWeekly(n > 0 && n <= 14 ? n : 0); savePlan(); }
   else if (a === "exnote") { S.plan.days[+t.dataset.d].exercises[+t.dataset.e].note = t.value; savePlan(); }
   else if (a === "exrest") { const n = parseInt(t.value, 10); S.plan.days[+t.dataset.d].exercises[+t.dataset.e].rest = n > 0 ? n : 0; savePlan(); }
   else if (a === "w" || a === "r") {
@@ -3452,7 +3504,7 @@ app.addEventListener("change", e => {
     const to = canon(t.dataset.to), from = norm(t.value), al = S.journey.aliases;
     if (from !== norm(to)) { for (const k of Object.keys(al)) if (norm(al[k]) === from) al[k] = to; al[from] = to; delete al[norm(to)]; saveJourney(0); toast(`${t.value} now counts as ${to}.`); }
   }
-  else if (a === "level") { S.plan.level = t.value; savePlan(0); render(); }
+  else if (a === "level") { S.plan.level = t.value; levelToProfile(t.value); savePlan(0); render(); }
   else if (a === "restorefile" && t.files && t.files[0]) t.files[0].text().then(restoreBackup, () => toast("Couldn't read that file."));
   else if (a === "sdate") { const s = editingSession(); if (s && /^\d{4}-\d{2}-\d{2}$/.test(t.value)) { s.date = t.value; saveSession(s, 0); render(); } }
 });

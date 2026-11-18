@@ -691,8 +691,8 @@ function exerciseHistory(name, beforeSession) {
 function lastFor(name, sess) { const h = exerciseHistory(name, sess); return h.length ? h[h.length - 1] : null; }
 // the weight set by the starting test counts until you've done the exercise in a normal workout
 const useLoad = (e, last) => !!e.load && (!last || !!(S.sessions.get(last.id) || {}).start);
-// today's weight and reps from your history: add reps up to the top of the range, then add weight;
-// back off after a long break or when the lift has stalled for 3 workouts
+// today's weight and reps from your history: add reps up to the top of the range, then add weight.
+// The weight never goes below what you lifted last time; after a break or a stall it holds there.
 const LOWER_PT = new Set(["squat", "hinge", "single"]);
 function suggestFor(ex, sess) {
   if (ex.kind || ex.test || ex.probe || isEmom(ex) || (ex.unit && ex.unit !== "reps")) return null;
@@ -702,19 +702,11 @@ function suggestFor(ex, sess) {
   const W = last.top, top = W > 0 ? last.sets.filter(st => st.w === W) : last.sets, minR = Math.min(...top.map(st => st.r));
   if (!(W > 0)) return minR >= hi ? { r: hi, why: `You got ${hi} on every set. Add weight or a harder version.` } : { r: Math.max(lo, minR + 1), why: "One more rep than last time." };
   const step = imperial() ? 5 : 2.5, u = units();
-  const down = (f, why) => { const r = roundW(W * f); return { w: r < W ? r : Math.max(step, W - step), r: lo, why }; };
   const gap = Math.round((parseDay(sess.date) - parseDay(last.date)) / 864e5);
-  if (gap >= 28) return down(0.8, `${Math.floor(gap / 7)} weeks since you last did this. Start lighter and build back up.`);
-  if (gap >= 14) return down(0.9, `${Math.floor(gap / 7)} weeks since you last did this. A little lighter to ease back in.`);
+  if (gap >= 14) return { w: W, r: lo, why: `${Math.floor(gap / 7)} weeks since you last did this. Same weight, ${lo} reps to ease back in.` };
   if (minR >= hi && top.length >= (Number((String(ex.target).match(/^\s*(\d+)\s*×/) || [])[1]) || 1)) {
     const inc = LOWER_PT.has(moveOf(ex.name)) ? 2 * step : step;
     return { w: W + inc, r: lo, why: `You got ${hi} on every set, so +${fmt(inc)} ${u}.` };
-  }
-  // stalled: no new best in the last 3 workouts, and you haven't already backed off
-  if (h.length >= 4) {
-    const recent = h.slice(-3), before = h.slice(0, -3), peak = Math.max(...before.map(p => p.e1rm));
-    if (Math.max(...recent.map(p => p.e1rm)) <= peak + 1e-9 && recent.every(p => p.top >= 0.95 * Math.max(...before.map(q => q.top))))
-      return down(0.9, "No new best in your last 3 workouts. Drop about 10% and build back up.");
   }
   if (minR < lo) return { w: W, r: lo, why: `Stay at ${fmt(W)} ${u} until you get ${lo} on every set.` };
   return { w: W, r: Math.min(hi, minR + 1), why: `One more rep than last time. At ${hi} on every set, the weight goes up.` };
@@ -773,6 +765,7 @@ function knownExercises() {
   const m = new Map();
   for (const d of (S.plan ? S.plan.days : [])) for (const e of d.exercises) if (e.name.trim()) m.set(norm(e.name), e.name.trim());
   for (const s of allSessions()) for (const e of s.exercises || []) if (e.name && !m.has(norm(e.name))) m.set(norm(e.name), e.name);
+  for (const list of Object.values(MOVES)) for (const [n] of list) if (!m.has(norm(n))) m.set(norm(n), n);
   return [...m.values()].sort((a, b) => a.localeCompare(b));
 }
 
@@ -999,25 +992,28 @@ const gearOk = (need, G) => !need || need.split("+").every(a => a.split("|").som
 const gearNeeds = (need, G) => (need || "").split("+").filter(a => !a.split("|").some(x => G.has(x))).map(a => a.split("|").map(x => optLabel(GEAR, x).toLowerCase()).join(" or "));
 // movement patterns: [name, equipment needed, note, unit]; each list goes from the usual gym choice to the most basic
 const MOVES = {
-  hpush: [["Bench press", "bench+barbell"], ["Dumbbell bench press", "bench+dumbbells"], ["Dumbbell floor press", "dumbbells"], ["Machine chest press", "machines"], ["Push-ups", ""], ["Incline push-ups", ""], ["Archer push-ups", "", "Each side."]],
+  hpush: [["Bench press", "bench+barbell"], ["Dumbbell bench press", "bench+dumbbells"], ["Dumbbell floor press", "dumbbells"], ["Machine chest press", "machines"], ["Push-ups", ""], ["Ring push-ups", "rings"], ["Incline push-ups", ""], ["Archer push-ups", "", "Each side."]],
   incpush: [["Incline bench press", "bench+barbell"], ["Incline dumbbell press", "bench+dumbbells"], ["Feet-elevated push-ups", ""]],
-  vpush: [["Overhead press", "barbell"], ["Dumbbell shoulder press", "dumbbells"], ["Kettlebell press", "kettlebells"], ["Machine shoulder press", "machines"], ["Landmine press", "barbell"], ["Half-kneeling one-arm press", "dumbbells|kettlebells", "Each side."], ["Pike push-ups", ""], ["Incline pike push-ups", ""]],
-  dips: [["Dips", "dipbars"], ["Ring dips", "rings"], ["Bench dips", "bench"], ["Close-grip push-ups", ""], ["Diamond push-ups", ""]],
-  vpull: [["Strict pull-ups", "bar"], ["Weighted pull-ups", "bar"], ["Pull-up negatives", "bar"], ["Band-assisted pull-ups", "bar"], ["Chest to bar pull-ups", "bar"], ["Lat pulldown", "cables|machines"]],
-  hpull: [["Barbell row", "barbell"], ["Chest-supported row", "bench+dumbbells"], ["Dumbbell row", "dumbbells", "Each side."], ["One-arm dumbbell row", "dumbbells", "Each side."], ["Machine row", "machines"], ["Seated cable row", "cables"], ["Ring rows", "rings"], ["Inverted rows", "bar"]],
-  squat: [["Back squat", "barbell"], ["Front squat", "barbell"], ["Box squat", "barbell+box|bench"], ["Goblet squat", "dumbbells|kettlebells"], ["Goblet box squat", "dumbbells|kettlebells"], ["Dumbbell front squat", "dumbbells"], ["Leg press", "machines"], ["Bodyweight squats", ""], ["Box squats", ""], ["Pistol squats", "", "Each leg."], ["Wall sit", "", "", "s"]],
-  hinge: [["Deadlift", "barbell"], ["Romanian deadlift", "barbell"], ["Dumbbell Romanian deadlift", "dumbbells"], ["Kettlebell deadlift", "kettlebells"], ["Kettlebell swings", "kettlebells"], ["Hip thrust", "bench+barbell"], ["Dumbbell hip thrust", "dumbbells"], ["Leg curl", "machines"], ["Single-leg dumbbell RDL", "dumbbells", "Each leg."], ["Glute bridge", ""], ["Single-leg hip thrust", "", "Each leg."], ["Nordic curl negatives", ""]],
-  single: [["Bulgarian split squat", "", "Each leg."], ["Walking lunges", "", "Each leg."], ["Reverse lunges", "", "Each leg."], ["Step-ups", "box|bench", "Each leg."]],
+  vpush: [["Overhead press", "barbell"], ["Push press", "barbell"], ["Dumbbell shoulder press", "dumbbells"], ["Arnold press", "dumbbells"], ["Kettlebell press", "kettlebells"], ["Machine shoulder press", "machines"], ["Landmine press", "barbell"], ["Half-kneeling one-arm press", "dumbbells|kettlebells", "Each side."], ["Handstand push-ups", "", "Against a wall."], ["Pike push-ups", ""], ["Incline pike push-ups", ""]],
+  dips: [["Dips", "dipbars"], ["Weighted dips", "dipbars"], ["Ring dips", "rings"], ["Bench dips", "bench"], ["Close-grip push-ups", ""], ["Diamond push-ups", ""]],
+  vpull: [["Strict pull-ups", "bar"], ["Weighted pull-ups", "bar"], ["Pull-up negatives", "bar"], ["Band-assisted pull-ups", "bar"], ["Chest to bar pull-ups", "bar"], ["Neutral-grip pull-ups", "bar"], ["Lat pulldown", "cables|machines"], ["Assisted pull-up machine", "machines"]],
+  hpull: [["Barbell row", "barbell"], ["Pendlay row", "barbell"], ["T-bar row", "barbell|machines"], ["Chest-supported row", "bench+dumbbells"], ["Dumbbell row", "dumbbells", "Each side."], ["One-arm dumbbell row", "dumbbells", "Each side."], ["Kettlebell row", "kettlebells", "Each side."], ["Machine row", "machines"], ["Seated cable row", "cables"], ["Ring rows", "rings"], ["Inverted rows", "bar"]],
+  squat: [["Back squat", "barbell"], ["Front squat", "barbell"], ["Box squat", "barbell+box|bench"], ["Goblet squat", "dumbbells|kettlebells"], ["Goblet box squat", "dumbbells|kettlebells"], ["Dumbbell front squat", "dumbbells"], ["Leg press", "machines"], ["Hack squat", "machines"], ["Thrusters", "barbell|dumbbells|kettlebells"], ["Wall balls", "wallball"], ["Leg extension", "machines"], ["Bodyweight squats", ""], ["Box squats", ""], ["Pistol squats", "", "Each leg."], ["Wall sit", "", "", "s"]],
+  hinge: [["Deadlift", "barbell"], ["Romanian deadlift", "barbell"], ["Dumbbell Romanian deadlift", "dumbbells"], ["Kettlebell deadlift", "kettlebells"], ["Kettlebell swings", "kettlebells"], ["Hip thrust", "bench+barbell"], ["Dumbbell hip thrust", "dumbbells"], ["Good mornings", "barbell"], ["Leg curl", "machines"], ["Back extensions", "ghd"], ["Single-leg dumbbell RDL", "dumbbells", "Each leg."], ["Glute bridge", ""], ["Single-leg hip thrust", "", "Each leg."], ["Nordic curl negatives", ""]],
+  single: [["Walking lunges", "", "Each leg."], ["Dumbbell walking lunges", "dumbbells|kettlebells", "Each leg."], ["Barbell lunges", "barbell", "Each leg."], ["Front-rack kettlebell lunges", "kettlebells", "Each leg."],
+    ["Reverse lunges", "", "Each leg."], ["Dumbbell reverse lunges", "dumbbells|kettlebells", "Each leg."], ["Lateral lunges", "", "Each leg."], ["Bulgarian split squat", "", "Each leg."],
+    ["Dumbbell Bulgarian split squat", "bench+dumbbells", "Each leg."], ["Step-ups", "box|bench", "Each leg."], ["Dumbbell step-ups", "box|bench+dumbbells", "Each leg."], ["Jumping lunges", "", "Each leg."]],
   carry: [["Farmer carries", "dumbbells|kettlebells", "", "m"], ["Suitcase carry", "dumbbells|kettlebells", "One side at a time.", "m"], ["Dead hangs", "bar", "", "s"], ["Dead hang", "bar", "", "s"]],
-  triceps: [["Triceps pushdown", "cables"], ["Overhead triceps extension", "cables|dumbbells"], ["Skull crushers", "bench+barbell|dumbbells"], ["Diamond push-ups", ""], ["Bench dips", "bench"]],
-  biceps: [["Biceps curl", "barbell|dumbbells"], ["Barbell curls", "barbell"], ["Dumbbell curl", "dumbbells"], ["Dumbbell biceps curls", "dumbbells"], ["Hammer curls", "dumbbells"], ["Cable curl", "cables"], ["Chin-ups", "bar"]],
-  reardelt: [["Face pulls", "cables"], ["Face pull", "cables"], ["Reverse dumbbell fly", "dumbbells"], ["Band pull-aparts", ""], ["Prone Y-raises", ""]],
-  lateral: [["Lateral raises", "dumbbells"], ["Lateral raise", "dumbbells"], ["Cable lateral raise", "cables"], ["Prone Y-raises", ""]],
+  triceps: [["Triceps pushdown", "cables"], ["Overhead triceps extension", "cables|dumbbells"], ["Skull crushers", "bench+barbell|dumbbells"], ["Close-grip bench press", "bench+barbell"], ["Triceps kickbacks", "dumbbells|cables"], ["Diamond push-ups", ""], ["Bench dips", "bench"]],
+  biceps: [["Biceps curl", "barbell|dumbbells"], ["Barbell curls", "barbell"], ["Dumbbell curl", "dumbbells"], ["Dumbbell biceps curls", "dumbbells"], ["Hammer curls", "dumbbells"], ["Incline dumbbell curl", "bench+dumbbells"], ["Preacher curl", "barbell|dumbbells|machines"], ["Cable curl", "cables"], ["Chin-ups", "bar"]],
+  reardelt: [["Face pulls", "cables"], ["Face pull", "cables"], ["Reverse pec deck", "machines"], ["Reverse dumbbell fly", "dumbbells"], ["Band pull-aparts", ""], ["Prone Y-raises", ""]],
+  lateral: [["Lateral raises", "dumbbells"], ["Lateral raise", "dumbbells"], ["Cable lateral raise", "cables"], ["Machine lateral raise", "machines"], ["Prone Y-raises", ""]],
   fly: [["Pec fly (butterfly machine)", "machines"], ["Cable fly", "cables"], ["Dumbbell fly", "bench+dumbbells"], ["Deficit push-ups", ""]],
   extrot: [["Shoulder external rotation", "cables", "Each side."], ["Band external rotation", "", "Each side."], ["Side-lying dumbbell external rotation", "dumbbells", "Each side."]],
-  core: [["Sit-ups", ""], ["GHD sit-ups", "ghd"], ["Hanging knee raises", "bar"], ["Ab wheel rollouts", ""], ["Plank", "", "", "s"], ["Dead bug", "", "Each side."], ["Hollow body hold", "", "", "s"], ["V-ups", ""]],
-  calves: [["Calf raise", "dumbbells|machines"], ["Single-leg calf raise", ""]],
-  power: [["Box jumps", "box", "Step down, don't jump down."], ["Broad jumps", ""], ["Jump squats", "", "Land softly."]],
+  core: [["Sit-ups", ""], ["GHD sit-ups", "ghd"], ["Hanging knee raises", "bar"], ["Hanging leg raises", "bar"], ["Cable crunch", "cables"], ["Ab wheel rollouts", ""], ["Plank", "", "", "s"],
+    ["Side plank", "", "Each side.", "s"], ["L-sit", "", "", "s"], ["Russian twists", ""], ["Dead bug", "", "Each side."], ["Hollow body hold", "", "", "s"], ["V-ups", ""]],
+  calves: [["Calf raise", "dumbbells|machines"], ["Seated calf raise", "machines"], ["Single-leg calf raise", ""]],
+  power: [["Box jumps", "box", "Step down, don't jump down."], ["Burpee box jump-overs", "box"], ["Burpees", ""], ["Broad jumps", ""], ["Jump squats", "", "Land softly."]],
   kip: [["Kipping pull-ups", "bar"], ["Kipping chest to bar", "bar"], ["Kip swing practice", "bar", "", "swings"], ["Band-assisted pull-ups", "bar"], ["Jumping pull-ups", "bar"], ["Ring rows", "rings"]],
   ttb: [["Toes to bar", "bar"], ["Kipping knees to chest", "bar"], ["Hanging knee raises", "bar"], ["V-ups", ""]]
 };
@@ -1025,7 +1021,12 @@ const SLOT_PT = { strict: "vpull", kip: "kip", ttb: "ttb" };
 const MOVE_OF = new Map(), MOVE_BY = new Map();
 for (const [pt, list] of Object.entries(MOVES)) for (const [name, need, note, unit] of list) { const k = norm(name); if (!MOVE_OF.has(k)) { MOVE_OF.set(k, pt); MOVE_BY.set(k, { name, need, note, unit }); } }
 const bareName = n => norm(String(n || "").replace(/\s*\([^)]*\)/g, ""));
-const moveOf = name => MOVE_OF.get(norm(name)) || MOVE_OF.get(bareName(name)) || null;
+// everyday names for catalogue exercises
+const MOVE_ALIAS = { "pull-ups": "Strict pull-ups", "pull-up": "Strict pull-ups", "clean sit-ups": "Sit-ups", "lunges": "Walking lunges", "lunge": "Walking lunges",
+  "split squats": "Bulgarian split squat", "butterfly": "Pec fly (butterfly machine)", "pec deck": "Pec fly (butterfly machine)" };
+const moveOf1 = n => MOVE_OF.get(norm(n)) || MOVE_OF.get(bareName(n)) || (MOVE_ALIAS[bareName(n)] && MOVE_OF.get(norm(MOVE_ALIAS[bareName(n)]))) || null;
+// "Bulgarian split squat or leg press", "Pull-ups / chest to bar": the first part that's in the catalogue says the movement
+const moveOf = name => moveOf1(name) || String(name || "").split(/\s+or\s+|\s*\/\s*/i).map(moveOf1).find(Boolean) || null;
 const moveBy = name => MOVE_BY.get(norm(name)) || MOVE_BY.get(bareName(name)) || null;
 // other exercises for the same movement; ones your equipment allows come first
 function swapOpts(e, G) {
@@ -2990,10 +2991,9 @@ function syncNative() {
   if (last !== sentLast) { sentLast = last; n.postMessage({ type: "weekly", last }); }
 }
 
-/* rest timer: always counts down. The length comes from the plan's rest time, or from the set itself
-   (heavier, lower-rep sets need longer), then adjusts for how hard the set was and what comes next. */
+/* rest timer: always counts down. A rest time in the plan is used as written. Without one, the length comes
+   from the set itself (heavier, lower-rep sets need longer) and how hard it was. */
 function restBase(ex, st) {
-  if (ex.rest > 0) return ex.rest;
   if (ex.unit === "s" || ex.unit === "m") return 90;
   const r = st.r || 0, pf = J().profile, md = pf ? planMode(pf) : "";
   let sec = r <= 5 ? 180 : r <= 8 ? 120 : r <= 12 ? 90 : 60;
@@ -3007,12 +3007,14 @@ function restFor(s, i, j) {
   if (lifts.every(e => e.sets.every(x => x.done))) return 0; // workout's done, nothing to rest for
   // EMOM sets left: count down to the next full minute since the EMOM started (Start EMOM clock, or the first ticked set)
   if (isEmom(ex) && ex.sets.some(x => !x.done)) { const at = ex.emomAt || (ex.emomAt = Date.now()), now = Date.now(); return (at + (Math.floor((now - at) / 60000) + 1) * 60000 - now) / 1000; }
-  let sec = restBase(ex, st);
-  // missed the bottom of the target rep range: that set was a grind, so rest a bit longer
-  const lo = parseInt(String(ex.target || "").split("×").pop(), 10);
-  if (ex.unit !== "s" && ex.unit !== "m" && lo > 0 && st.r < lo) sec += 30;
   // last set of this exercise: no timer, moving on to the next exercise is up to you
   if (ex.sets.every(x => x.done)) return 0;
+  // a rest time in the plan is the timer, exactly as written
+  if (ex.rest > 0) return Math.min(600, ex.rest);
+  let sec = restBase(ex, st);
+  // no rest time given: missed the bottom of the target rep range, so that set was a grind and gets a bit longer
+  const lo = parseInt(String(ex.target || "").split("×").pop(), 10);
+  if (ex.unit !== "s" && ex.unit !== "m" && lo > 0 && st.r < lo) sec += 30;
   return Math.min(600, Math.max(30, Math.round(sec / 15) * 15));
 }
 let actx = null;
@@ -3152,11 +3154,11 @@ const DEMOS = {
 };
 // exercise name → drawing; the first match wins
 const DEMO_MAP = [[/handstand push|hspu/, "hspu"], [/handstand|wall walk/, "handstand"], [/pike push/, "pike"],
-  [/toes? to bar/, "ttb"], [/knee raise|knees to chest/, "kneeraise"], [/kip swing/, "kipswing"], [/kipping pull|kipping chest|butterfly pull/, "kippull"],
+  [/toes? to bar/, "ttb"], [/knee raise|leg raise|knees to chest/, "kneeraise"], [/kip swing/, "kipswing"], [/kipping pull|kipping chest|butterfly pull/, "kippull"],
   [/dead hang/, "hang"], [/pull-?ups?|chin-?ups?|chest to bar|muscle-?up|scapular/, "pullup"], [/pulldown/, "pulldown"],
-  [/cable row|seated row|machine row/, "cablerow"], [/\brows?\b/, "row"], [/face pull|pull-apart|reverse.*fly|y-raise/, "facepull"],
+  [/cable row|seated row|machine row/, "cablerow"], [/\brows?\b/, "row"], [/face pull|pull-apart|reverse.*(?:fly|pec deck)|y-raise/, "facepull"],
   [/lateral raise/, "lateral"], [/\bdips?\b/, "dips"], [/push-?ups?/, "pushup"], [/\bfly\b/, "fly"],
-  [/bench press|floor press|chest press/, "bench"], [/overhead press|shoulder press|push press|kettlebell press|landmine|one-arm press|military/, "ohp"],
+  [/bench press|floor press|chest press/, "bench"], [/overhead press|shoulder press|push press|kettlebell press|arnold press|landmine|one-arm press|military/, "ohp"],
   [/pushdown/, "pushdown"], [/triceps|skull/, "ohext"], [/^(?!.*(?:leg|nordic)).*curl/, "curl"], [/swing/, "kbswing"],
   [/deadlift|\brdl\b|good morning/, "hinge"], [/hip thrust|glute bridge/, "bridge"], [/box jump/, "boxjump"], [/jump/, "jump"],
   [/wall sit/, "wallsit"], [/split squat|lunge|step-?up/, "lunge"], [/goblet|front squat|pistol|wall ball|thruster/, "gsquat"],
@@ -3476,7 +3478,12 @@ app.addEventListener("input", e => {
     s.exercises[+t.dataset.i].score = t.value; saveSession(s, 900);
   } else if (a === "wtarget") { const n = parseInt(t.value, 10); setWeekly(n > 0 && n <= 14 ? n : 0); savePlan(); }
   else if (a === "exnote") { S.plan.days[+t.dataset.d].exercises[+t.dataset.e].note = t.value; savePlan(); }
-  else if (a === "exrest") { const n = parseInt(t.value, 10); S.plan.days[+t.dataset.d].exercises[+t.dataset.e].rest = n > 0 ? n : 0; savePlan(); }
+  else if (a === "exrest") {
+    const n = parseInt(t.value, 10), e = S.plan.days[+t.dataset.d].exercises[+t.dataset.e]; e.rest = n > 0 ? n : 0; savePlan();
+    // today's workout times its rests with the new value too
+    const s = activeSession(), i = s ? s.exercises.findIndex((x, k) => planExFor(s, k) === e) : -1;
+    if (i >= 0) { if (e.rest) s.exercises[i].rest = e.rest; else delete s.exercises[i].rest; saveSession(s, 900); }
+  }
   else if (a === "w" || a === "r") {
     const s = editingSession(); if (!s) return;
     const st = s.exercises[+t.dataset.i].sets[+t.dataset.j];

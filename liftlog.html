@@ -1385,6 +1385,38 @@ function pushPullPlan() {
     "Train the days in order (1, 2, 3). After a break, carry on with the next day.",
     "Every 6th week: same exercises, half the sets (deload). Do the Test session that week in place of one regular day."] };
 }
+// Niklas's original 2-day Push / Pull split, exactly as in his spreadsheet (exercises and order); sets and reps are ours
+function sheetPlan() {
+  const ex = (block, name, sets, reps, rest, note, more = {}) => ({ id: uid(), block, name, sets, reps, ...(rest ? { rest } : {}), ...(note ? { note } : {}), ...more });
+  const test = originalPlan().days.find(d => d.test);
+  const days = [
+    { name: "Push", note: "Toes to bar and butterfly alternate.", exercises: [
+      ex("Main", "Bench press", 4, "5-8", 150, "Last rep hard but clean."),
+      ex("Main", "Overhead press", 3, "6-10", 120, "Strict press, glutes tight."),
+      ex("Superset", "Toes to bar", 3, "6-10", 30, "Alternate with butterfly: a set of toes to bar, a set of butterfly, then rest.", { unit: "reps" }),
+      ex("Superset", "Pec fly (butterfly machine)", 3, "10-15", 90, "Right after the toes to bar set. Rest after both."),
+      ex("Core", "Clean sit-ups", 3, "10-15", 45),
+      ex("Main", "Dips", 3, "8-12", 120, "Add weight once 3 × 12 is easy."),
+      ex("Arms", "Triceps pushdown", 3, "10-12", 60),
+      ex("Arms", "Overhead triceps extension", 3, "10-15", 60)] },
+    { name: "Pull", note: "Pull-ups first while fresh.", exercises: [
+      ex("Main", "Pull-ups / chest to bar", 4, "5-8", 120, "Strict pull-ups. Chest to bar (kipping) once 4 × 8 strict is easy."),
+      ex("Shoulders", "Lateral raises", 3, "12-15", 60, "Light, slow on the way down."),
+      ex("Main", "Lat pulldown", 3, "10-12", 90, "Controlled, full stretch at the top."),
+      ex("Main", "Dumbbell row", 3, "8-12 / side", 90, "Pause at the hip."),
+      ex("Main", "Machine row", 3, "10-12", 90, "Squeeze 1 s at the chest."),
+      ex("Shoulders", "Face pulls", 3, "12-15", 60, "Pull to the eyes, thumbs back."),
+      ex("Shoulders", "Shoulder external rotation", 2, "15 / side", 45, "Cable or band."),
+      ex("Arms", "Dumbbell biceps curls", 3, "10-12", 60),
+      ex("Arms", "Barbell curls", 3, "10-12", 60)] },
+    test
+  ].map(d => ({ id: uid(), ...d }));
+  return { level: (S.plan && S.plan.level) || "3", weeklyTarget: 3, days, rules: [
+    "When you hit the top of the rep range on every set, add 2.5 kg next time.",
+    "Keep 1–2 reps in reserve on arms and accessories.",
+    "Alternate Push and Pull. After a break, carry on with the next day.",
+    "Every 6th week: same exercises, half the sets (deload). Do the Test session that week in place of one regular day."] };
+}
 // switches to a ready-made plan; the starting test still sets the pull-up level and working weights
 function adoptPlan(np) {
   const p = J().profile;
@@ -2768,7 +2800,9 @@ function planSetupHTML() {
       <span class="label">Ready-made plans</span><div class="row between"><span class="small">Original Upper Body Plan</span>${armBtn("origplan", "Use it", "Tap again to switch", "btn sm")}</div>
       <p class="muted small" style="margin:0">Days A, B, C and Test Week as first set up. Your workouts and starting test results stay. The current plan is kept under Phases.</p>
       <div class="row between"><span class="small">Push / Pull / Upper + Legs</span>${armBtn("pushpull", "Use it", "Tap again to switch", "btn sm")}</div>
-      <p class="muted small" style="margin:0">Push + squat, pull + hinge, upper volume + legs, on 3 days. Your workouts stay, the current plan is kept under Phases.</p></section>`;
+      <p class="muted small" style="margin:0">Push + squat, pull + hinge, upper volume + legs, on 3 days. Your workouts stay, the current plan is kept under Phases.</p>
+      <div class="row between"><span class="small">Original Push / Pull (2 days)</span>${armBtn("sheetplan", "Use it", "Tap again to switch", "btn sm")}</div>
+      <p class="muted small" style="margin:0">Your first split from the spreadsheet: Push and Pull, alternating. Your workouts stay, the current plan is kept under Phases.</p></section>`;
     h += gearHTML();
   }
   return h;
@@ -3435,6 +3469,7 @@ app.addEventListener("click", e => {
       else if (kind === "rmgoal") { jr.goals = jr.goals.filter(g => g.id !== x); saveJourney(0); }
       else if (kind === "origplan") { useOriginalPlan(); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to the original Upper Body Plan."); return; }
       else if (kind === "pushpull") { adoptPlan(pushPullPlan()); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to Push / Pull / Upper + Legs."); return; }
+      else if (kind === "sheetplan") { adoptPlan(sheetPlan()); S.settings = false; S.view = "plan"; S.planTab = "plan"; window.scrollTo(0, 0); render(); toast("Switched to your original Push / Pull split."); return; }
       else if (kind === "amrapstop") S.restAt = null;
       else if (kind === "skiptest") { delete S.plan.start; S.pickDay = null; savePlan(0); toast("Test skipped. Pick weights that leave 2 reps in reserve."); return; }
       render(); break;
